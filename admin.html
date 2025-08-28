@@ -1,0 +1,1307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>KPI Manager - Admin Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Add favicon for browser tab -->
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --font-sans: 'Lexend', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; }
+    html, body { font-family: var(--font-sans); }
+    button, input, select, textarea { font-family: inherit; }
+
+    /* 30/70 split for the two cards; stacks on small screens */
+    .grid.ratio-30-70 {
+      grid-template-columns: 0.3fr 0.7fr;
+    }
+    @media (max-width: 1000px) {
+      .grid.ratio-30-70 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Circular progress styles */
+    .progress-tile {
+      display: flex;
+      flex-direction: row;           /* changed: horizontal layout */
+      align-items: center;
+      gap: 14px;                     /* spacing between circle and details */
+      text-align: left;              /* left-align details */
+    }
+    .circle-progress {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: conic-gradient(var(--accent) calc(var(--p) * 1%), #333 0);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: white;
+      flex: 0 0 auto;                /* don't stretch the circle */
+    }
+    .circle-inner {
+      position: absolute;
+      width: 80%;
+      height: 80%;
+      border-radius: 50%;
+      background: var(--panel);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .progress-meta {
+      margin: 0;                     /* changed: remove top margin for side-by-side */
+      font-size: 14px;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    /* Use more of the card's empty space */
+    #taskProgressTile { align-items: center; gap: 18px; }
+    #taskProgressTile .progress-meta { flex: 1; }
+
+    /* Center the Task Progress contents inside the card */
+    #taskProgressTile {
+      /* keep it a row */
+      justify-content: center;
+      /* hard-center the whole row block */
+      max-width: 620px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    /* Do NOT stretch the details block; keep natural width */
+    #taskProgressTile .progress-meta {
+      flex: 0 0 auto; /* overrides earlier flex:1 */
+      text-align: left;
+      max-width: 420px;
+    }
+
+    /* Default upsize */
+    #taskProgressTile .circle-progress {
+      width: 140px;   /* was 100px */
+      height: 140px;  /* was 100px */
+      font-size: 20px; /* center % */
+    }
+    #taskProgressTile .circle-inner {
+      width: 78%;
+      height: 78%;
+      font-size: 18px;
+    }
+
+    /* Extra-wide screens */
+    @media (min-width: 1440px) {
+      #taskProgressTile .circle-progress {
+        width: 180px;
+        height: 180px;
+        font-size: 24px;
+      }
+      #taskProgressTile .circle-inner {
+        width: 78%;
+        height: 78%;
+        font-size: 20px;
+      }
+    }
+
+    /* Compact on smaller screens */
+    @media (max-width: 900px) {
+      #taskProgressTile .circle-progress {
+        width: 110px;
+        height: 110px;
+        font-size: 18px;
+      }
+      #taskProgressTile .circle-inner {
+        font-size: 16px;
+      }
+    }
+
+    /* OVERRIDES: align Task Progress left and make ring smaller */
+    #taskProgressTile {
+      justify-content: flex-start;  /* left align row */
+      width: auto;                  /* cancel previous 100% */
+      max-width: none;              /* cancel previous 620px */
+      margin-left: 0;               /* cancel auto-centering */
+      margin-right: 0;
+    }
+    /* slightly smaller circle */
+    #taskProgressTile .circle-progress {
+      width: 120px;   /* was 140px */
+      height: 120px;  /* was 140px */
+      font-size: 18px;
+    }
+    /* keep inner size balanced */
+    #taskProgressTile .circle-inner {
+      width: 78%;
+      height: 78%;
+      font-size: 17px;
+    }
+    @media (min-width: 1440px) {
+      #taskProgressTile .circle-progress {
+        width: 160px; /* was 180px */
+        height: 160px;
+        font-size: 22px;
+      }
+      #taskProgressTile .circle-inner {
+        width: 78%;
+        height: 78%;
+        font-size: 19px;
+      }
+    }
+    @media (max-width: 900px) {
+      #taskProgressTile .circle-progress {
+        width: 96px;  /* was 110px */
+        height: 96px;
+        font-size: 16px;
+      }
+      #taskProgressTile .circle-inner { font-size: 15px; }
+    }
+
+    /* Flat background overrides: remove gradients on surfaces */
+    body.admin-page,
+    .main,
+    .sidebar,
+    .topbar,
+    .card,
+    /* progress tile surface only (keep ring gradient) */
+    .progress-tile {
+      background-color: var(--card, var(--panel));
+      background-image: none !important;
+    }
+
+    /* Sidebar as flex column so logout can be pinned at bottom */
+    .sidebar { display: flex; flex-direction: column; }
+    .sidebar .nav { display: flex; flex-direction: column; gap: 8px; }
+    .sidebar-spacer { flex: 1 1 auto; }
+
+    /* Logout button: full-width, flat, matches theme */
+    #btn-logout {
+      align-self: stretch;
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: var(--radius, 10px);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--danger, #ef4444);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      box-shadow: var(--shadow, none);
+      background-image: none !important; /* force flat */
+      transition: background-color .15s ease, transform .05s ease;
+    }
+    #btn-logout:hover { background: var(--danger-hover, #f05252); }
+    #btn-logout:active { transform: translateY(1px); }
+    #btn-logout:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* Seamless page gradient (keeps cards/panels flat) */
+    body.admin-page {
+      /* subtle, dark vertical gradient that won't band while scrolling */
+      background: linear-gradient(180deg, #0e1220 0%, #0b0f1c 50%, #0a0d18 100%) !important;
+      background-attachment: fixed;
+    }
+
+    /* Do NOT let Task Progress card stretch with the Summary card */
+    .task-progress-card { align-self: start; height: auto; }
+
+    /* NEW: keep Task Progress and Summary same fixed height */
+    #kpiPair > .card {
+      align-self: start;         /* avoid grid stretch */
+      height: 240px;             /* fixed, equal height */
+      overflow: hidden;          /* prevent expansion */
+      display: flex;               /* NEW: allow child (canvas) to flex-fill */
+      flex-direction: column;
+    }
+    #kpiPair > .card h3 { margin-bottom: 8px; }
+    /* Summary canvas height clamp */
+    #kpiPair #summaryBar {
+      flex: 1 1 auto;
+      height: auto !important;     /* override previous clamp */
+      max-height: none !important; /* override previous clamp */
+      width: 100% !important;
+      min-height: 0;               /* avoid overflow issues in flex containers */
+      display: block;
+    }
+    /* On narrow screens, let them size naturally when stacked */
+    @media (max-width: 900px) {
+      #kpiPair > .card { height: auto; }
+    }
+
+    /* Agent meta badges: bigger with the same gradient as primary buttons */
+    #agentMetaRow {
+      gap: 16px !important;
+    }
+    #agentMetaRow .badge {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #0d0f1a;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.1px;
+      box-shadow: 0 6px 16px rgba(167,139,250,0.25);
+    }
+    #agentMetaRow .badge strong {
+      font-weight: 800;
+      margin-left: 6px;
+      color: #0b0f1c;
+    }
+
+    /* Top 10 table enhancements */
+    .table.top10 thead th { color: #cfd2df; }
+    .table.top10 tbody tr { transition: background-color .15s ease, box-shadow .15s ease; }
+    .table.top10 tbody tr:hover { background-color: rgba(255,255,255,0.03); }
+
+    /* Rank medals (in first cell) */
+    .table.top10 td.rank { width: 44px; }
+    .table.top10 .medal {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 13px;
+      color: #0b0f1c;
+      background: #94a3b8; /* default (4+) */
+      box-shadow: 0 6px 14px rgba(0,0,0,0.15), inset 0 0 0 2px rgba(255,255,255,0.35);
+    }
+    .table.top10 .medal-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+    .table.top10 .medal-2 { background: linear-gradient(135deg, #e5e7eb, #c7c9d3); }
+    .table.top10 .medal-3 { background: linear-gradient(135deg, #f59e0b, #b45309); color: #111827; }
+
+    /* Subtle row accent for ranks 1–3 */
+    .table.top10 tbody tr[data-rank="1"] { box-shadow: inset 0 0 0 2px rgba(245,158,11,0.22); background: rgba(245,158,11,0.06); }
+    .table.top10 tbody tr[data-rank="2"] { box-shadow: inset 0 0 0 2px rgba(207,212,220,0.2); background: rgba(207,212,220,0.05); }
+    .table.top10 tbody tr[data-rank="3"] { box-shadow: inset 0 0 0 2px rgba(180,83,9,0.18);  background: rgba(180,83,9,0.05); }
+
+    /* Redesigned Overall badge */
+    .table.top10 td.overall {
+      min-width: 110px;
+      text-align: center;
+    }
+    .table.top10 .overall-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 64px;
+      padding: 0 14px;
+      height: 32px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: 0.2px;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      background: #64748b;
+      border: none;
+      transition: background .2s;
+      position: relative;
+      margin: 0 auto;
+    }
+    .table.top10 .overall-badge.bad    { background: linear-gradient(90deg, #ef4444, #b91c1c); }
+    .table.top10 .overall-badge.ok     { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .table.top10 .overall-badge.good   { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .table.top10 .overall-badge.great  { background: linear-gradient(90deg, #2dd4bf, #0ea5e9); }
+    .table.top10 .overall-badge .icon {
+      margin-right: 7px;
+      font-size: 17px;
+      opacity: 0.92;
+      vertical-align: middle;
+    }
+    /* Optional: subtle glow for great */
+    .table.top10 .overall-badge.great {
+      box-shadow: 0 0 0 2px #0ea5e9, 0 2px 8px rgba(0,0,0,0.10);
+    }
+
+    /* App loader (full-screen overlay) */
+    .app-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(8, 11, 20, 0.55);
+      backdrop-filter: blur(2px);
+    }
+    .app-loader.hidden { display: none; }
+    .app-loader .box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #0f1426;
+      color: #e5e7eb;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .app-loader .spinner {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.18);
+      border-top-color: var(--accent, #a78bfa);
+      animation: spin 0.9s linear infinite;
+    }
+    .app-loader .label {
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      font-size: 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Top Agents: card grid */
+    .top10-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .agent-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+      height: 100%; /* make all cards equal height */
+    }
+    .agent-card:hover { box-shadow: 0 12px 28px rgba(0,0,0,0.22); }
+    .agent-head {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .agent-avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 800; color: #0b0f1c;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 6px 14px rgba(167,139,250,0.25);
+      flex: 0 0 auto;
+    }
+    .agent-meta .name { font-weight: 700; letter-spacing: .1px; }
+    .agent-meta .sub { color: #cfd2df; font-size: 12px; }
+    .rank-ribbon {
+      width: 38px;
+      position: absolute; 
+      top: 0px; 
+      right: 37px;
+      background: #94a3b8; 
+      color: #0b0f1c; 
+      font-weight: 800;
+      border-bottom-left-radius: 14px;
+      padding: 6px 10px; 
+      font-size: 12px;
+      box-shadow: 0 6px 14px rgba(0,0,0,0.2), inset 0 0 0 2px rgba(255,255,255,0.35);
+      white-space: nowrap; /* Prevent ribbon from wrapping */
+    }
+    .rank-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+    .rank-2 { background: linear-gradient(135deg, #e5e7eb, #c7c9d3); }
+    .rank-3 { background: linear-gradient(135deg, #f59e0b, #b45309); color: #111827; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: #e5e7eb;
+    }
+    .overall-badge {
+      width: 38px;
+      position: absolute; 
+      top: 0px; 
+      right: 0px;
+      align-self: flex-start;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 6px; 
+      border-top-right-radius: 14px;
+      font-weight: 300;
+      font-size: 12px;
+      color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.15), inset 0 0 0 2px rgba(255,255,255,0.35);
+    }
+    .overall-badge.bad   { background: linear-gradient(90deg, #ef4444, #b91c1c); }
+    .overall-badge.ok    { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .overall-badge.good  { background: linear-gradient(90deg, #22c55e, #16a34a); }
+    .overall-badge.great { background: linear-gradient(90deg, #2dd4bf, #0ea5e9); }
+
+    /* Hide old table (kept for fallback) */
+    .top10-table-hidden { display: none !important; }
+
+    /* Collapsible animation for Top 10 Agents */
+    .collapsible-container {
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(.4,0,.2,1), opacity 0.35s cubic-bezier(.4,0,.2,1);
+      max-height: 1200px; /* enough for content */
+      opacity: 1;
+      will-change: max-height, opacity;
+    }
+    .collapsible-container.collapsed {
+      max-height: 0 !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+    /* Optional: style for the collapse button */
+    #btnTop10Collapse {
+      background: none;
+      border: none;
+      color: var(--accent, #a78bfa);
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      padding: 0 8px;
+      margin-left: 8px;
+      transition: color 0.2s;
+      vertical-align: middle;
+    }
+    #btnTop10Collapse[aria-expanded="true"] { color: #fff; }
+    #btnTop10Collapse .arrow {
+      display: inline-block;
+      transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+      margin-left: 2px;
+    }
+    #btnTop10Collapse[aria-expanded="true"] .arrow {
+      transform: rotate(90deg);
+    }
+
+    /* Light theme variables */
+    :root[data-theme='light'] {
+      --card: #f8fafc;
+      --panel: #f1f5f9;
+      --text: #1e293b;
+      --accent: #6366f1;
+      --accent-2: #a78bfa;
+      --danger: #ef4444;
+      --danger-hover: #f05252;
+      --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    [data-theme='light'] body.admin-page {
+      background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+      color: var(--text);
+    }
+    [data-theme='light'] .sidebar,
+    [data-theme='light'] .main,
+    [data-theme='light'] .topbar,
+    [data-theme='light'] .card {
+      background-color: var(--card, #fff) !important;
+      color: var(--text, #1e293b);
+      box-shadow: var(--shadow, none);
+    }
+    [data-theme='light'] .progress-tile,
+    [data-theme='light'] .circle-inner {
+      background: var(--panel, #f1f5f9) !important;
+      color: var(--text, #1e293b);
+    }
+    [data-theme='light'] .circle-progress {
+      background: conic-gradient(var(--accent) calc(var(--p, 0) * 1%), #e5e7eb 0);
+      color: var(--text, #1e293b);
+    }
+    [data-theme='light'] .badge {
+      background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+      color: #3730a3;
+    }
+    [data-theme='light'] .btn,
+    [data-theme='light'] .btn.secondary {
+      background: #6366f1;
+      color: #fff;
+    }
+    [data-theme='light'] .btn.danger {
+      background: #ef4444;
+      color: #fff;
+    }
+    [data-theme='light'] .btn.secondary {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    [data-theme='light'] .muted {
+      color: #64748b;
+    }
+    [data-theme='light'] .table thead th,
+    [data-theme='light'] .table tbody td {
+      color: #334155;
+      background: transparent;
+    }
+    [data-theme='light'] .table {
+      background: transparent;
+    }
+    [data-theme='light'] input,
+    [data-theme='light'] select {
+      background: #fff;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+    }
+    [data-theme='light'] .sidebar .brand .title {
+      color: #3730a3;
+    }
+    [data-theme='light'] .sidebar .brand .dot {
+      background: #6366f1;
+    }
+
+    
+    .theme-switch-toggle .switch {
+      position: relative;
+      width: 70px;
+      height: 32px;
+      background: #23263a;
+      border-radius: 999px;
+      border: 1.5px solid #e5e7eb;
+      transition: background 0.2s, border 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    .theme-switch-toggle input[type="checkbox"] {
+      appearance: none;
+      width: 70px;
+      height: 32px;
+      margin: 0;
+      position: absolute;
+      left: 0; top: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .theme-switch-toggle .slider {
+      position: absolute;
+      left: 0; top: 0;
+      width: 70px;
+      height: 32px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      transition: background 0.2s;
+      z-index: 1;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .slider {
+      background: #23263a;
+    }
+    .theme-switch-toggle .thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: left 0.22s cubic-bezier(.4,0,.2,1), background 0.2s;
+      z-index: 3;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb {
+      left: 41px;
+      background: #fff;
+    }
+    .theme-switch-toggle .thumb .moon {
+      display: block;
+      color: #fbbf24;
+      font-size: 18px;
+      filter: drop-shadow(0 0 1px #fbbf24);
+      background-color: #0a0d18;
+      border-radius: 100%;
+    }
+    .theme-switch-toggle .thumb .sun {
+      display: none;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb .moon {
+      display: none;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb .sun {
+      display: block;
+      color: #fbbf24;
+      font-size: 18px;
+      filter: drop-shadow(0 0 1px #fbbf24);
+    }
+    .theme-switch-toggle .icon-sun,
+    .theme-switch-toggle .icon-moon {
+      font-size: 18px;
+      margin: 0 2px;
+      opacity: 0.85;
+      pointer-events: none;
+      transition: color 0.2s, opacity 0.2s;
+    }
+    .theme-switch-toggle .icon-sun {
+      color: #fbbf24;
+      margin-right: 6px;
+    }
+    .theme-switch-toggle .icon-moon {
+      color: #64748b;
+      margin-left: 6px;
+    }
+
+    /* Custom scrollbar for agent detail and agents list */
+    .card.scrollable {
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent, #a78bfa) rgba(0,0,0,0.08);
+      /* Hide scrollbar by default */
+      overflow-y: auto;
+    }
+    .card.scrollable::-webkit-scrollbar {
+      width: 8px;
+      background: transparent;
+      transition: background 0.2s;
+    }
+    .card.scrollable::-webkit-scrollbar-thumb {
+      background: rgba(167,139,250,0.18);
+      border-radius: 8px;
+      transition: background 0.2s;
+      opacity: 0;
+    }
+    .card.scrollable:hover::-webkit-scrollbar-thumb {
+      background: rgba(167,139,250,0.45);
+      opacity: 1;
+    }
+    .card.scrollable::-webkit-scrollbar-thumb {
+      opacity: 0;
+    }
+    .card.scrollable:hover::-webkit-scrollbar-thumb {
+      opacity: 1;
+    }
+    .card.scrollable::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    /* Hide scrollbar when not hovered (Firefox) */
+    .card.scrollable {
+      scrollbar-color: transparent transparent;
+    }
+    .card.scrollable:hover {
+      scrollbar-color: var(--accent, #a78bfa) rgba(0,0,0,0.08);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="dot"></span>
+        <div class="title">KPI Manager</div>
+      </div>
+      <div class="nav">
+        <a href="#" id="btnOverview" class="active">Overview</a>
+        <button id="btnToggleAdv">Admin Control</button>
+        <!-- Only Overview and Advanced Settings nav items remain -->
+      </div>
+
+
+      <div class="sidebar-spacer"></div>
+      <button id="btn-logout" class="btn danger">Logout</button>
+      <!-- Version Info button will be injected here -->
+    </aside>
+
+    <main class="main">
+      <div class="topbar" style="display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="hamburger" id="toggleSidebar">☰ Menu</button>
+          <span class="badge">Admin</span>
+          <input type="month" id="adminMonth" style="background: var(--panel); border:1px solid rgba(255,255,255,0.08); color: var(--text); padding: 8px 10px; border-radius: 10px;" />
+          <!-- NEW: Generate Report dropdown -->
+          <div id="reportDropdown" style="position:relative;">
+            <button id="btnReports" class="btn">Generate Report ▾</button>
+            <div id="reportMenu" class="card hidden" style="position:absolute; right:0; top:36px; z-index:20; padding:6px; min-width:180px;">
+              <button id="optDailyReport" class="btn secondary" style="width:100%;">Daily Report</button>
+              <button id="optMonthlyReport" class="btn secondary" style="width:100%; margin-top:6px;">Monthly Report</button>
+            </div>
+          </div>
+        </div>
+        <!-- Theme switch toggle in main panel top right -->
+        <label class="theme-switch-toggle" title="Toggle light/dark mode">
+          <span class="switch">
+            <input type="checkbox" id="themeToggle" />
+            <span class="slider"></span>
+            <span class="thumb">
+              <span class="moon">&#127769;</span>
+              <span class="sun">&#9728;</span>
+            </span>
+          </span>
+        </label>
+      </div>
+
+      <!-- Overview content (shown by default) -->
+      <div id="overviewPanel">
+        <!-- Top 10 Agents card -->
+        <div class="card">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <h2 style="margin:0;">Top 10 Agents (Overall Performance)</h2>
+            <button id="btnTop10Collapse" aria-expanded="true" aria-controls="top10Collapsible" title="Show/Hide Top 10">
+              <span>Collapse</span>
+              <span class="arrow" style="font-size:18px;">&#9654;</span>
+            </button>
+          </div>
+          <div class="muted">Month: <span id="top10Month"></span></div>
+
+          <!-- Collapsible content wrapper -->
+          <div id="top10Collapsible" class="collapsible-container collapsed">
+            <div id="top10Grid" class="top10-grid"></div>
+            <!-- Keep old table but hide -->
+            <table class="table top10 top10-table-hidden" style="margin-top:8px;">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name</th>
+                  <th>Client</th>
+                  <th>Position</th>
+                  <th>Tasks</th>
+                  <th>Attendance</th>
+                  <th>Attitude</th>
+                  <th>Overall</th>
+                </tr>
+              </thead>
+              <tbody id="top10Table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- CHANGE: use 30/70 layout -->
+        <div class="grid two ratio-30-70" style="margin-top:16px;">
+          <div class="card scrollable" style="max-height:720px; overflow-y:auto;">
+            <h2>Agents by Client & Position</h2>
+            <div id="agentsList" class="list" style="margin-top:10px;"></div>
+          </div>
+
+          <div class="card scrollable" style="max-height:720px; overflow-y:auto;">
+            <h2>Agent KPI Detail</h2>
+            <div id="agentMetaRow" style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px;">
+              <span class="badge">Name: <strong id="detailName">-</strong></span>
+              <span class="badge">Client: <strong id="detailClient">-</strong></span>
+              <span class="badge">Position: <strong id="detailPosition">-</strong></span>
+            </div>
+
+            <!-- KPI Row: Task Progress, Overall Performance, Task Created -->
+            <div id="kpiRow" class="grid three" style="margin-top:12px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+              <!-- Overall Performance FIRST -->
+              <div class="card" style="display: flex; flex-direction: column; justify-content: center; min-height: 140px;">
+                <h3 style="margin-bottom: 12px; position: absolute; top: 10px; left: 15px;">Overall Performance</h3>
+                <div style="display: flex; align-items: flex-end; gap: 18px; margin-top: 32px;">
+                  <button class="btn" id="mpOverallBtn" style="font-size: 2.2em; font-weight: 800; height: 100%; min-width: 90px; padding: 12px 18px; border-radius: 12px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 2px 8px rgba(167,139,250,0.18); border: none; outline: none; cursor: default;">
+                    <span id="mpOverallPct">0%</span>
+                  </button>
+                  <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button class="btn secondary" style="display:flex; align-items:center; gap:8px; font-size:1em; font-weight:600; color:var(--accent); background:rgba(167,139,250,0.10); border:none; cursor:default; padding:7px 16px;">
+                      <span>Task</span>
+                      <span id="mpTaskWeight" style="font-weight:700;">50%</span>
+                    </button>
+                    <button class="btn secondary" style="display:flex; align-items:center; gap:8px; font-size:1em; font-weight:600; color:var(--accent); background:rgba(167,139,250,0.10); border:none; cursor:default; padding:7px 16px;">
+                      <span>Attendance</span>
+                      <span id="mpAttendanceWeight" style="font-weight:700;">30%</span>
+                    </button>
+                    <button class="btn secondary" style="display:flex; align-items:center; gap:8px; font-size:1em; font-weight:600; color:var(--accent); background:rgba(167,139,250,0.10); border:none; cursor:default; padding:7px 16px;">
+                      <span>Attitude</span>
+                      <span id="mpAttitudeWeight" style="font-weight:700;">20%</span>
+                    </button>
+                  </div>
+                </div>
+                <div id="saveKpiStatus" class="muted" style="margin-top:10px;"></div>
+              </div>
+
+              <!-- Combined Task Progress & Created SECOND -->
+              <div class="card" style="display: flex; flex-direction: column; justify-content: center; min-height: 180px; padding: 15px 0 18px 0;">
+                <h3 style="margin-bottom: 18px; margin-left: 15px; font-weight: 700; color: #fff; letter-spacing: 0.01em; text-align: left; align-self: flex-start;">Task Progress</h3>
+                <div style="display: flex; align-items: center; gap: 28px; width: 100%; justify-content: center;">
+                  <div class="circle-progress" id="taskProgress" style="--p: 0; width: 100px; height: 155px; min-width: 155px; min-height: 100px; display: flex; align-items: center; justify-content: center;"></div>
+                  <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 120px;">
+                    <button class="btn" id="mpTaskPctBtn" style="font-size: 2.4em; font-weight: 900; min-width: 110px; padding: 14px 22px; border-radius: 14px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: 0 2px 12px rgba(167,139,250,0.18); border: none; outline: none; cursor: default;">
+                      <span id="mpTaskPct">0%</span>
+                    </button>
+                    <div style="font-size: 1.08em; color: #e0e0e0; font-weight: 600;">
+                      <span id="detailTotal">0</span> / <span id="detailTarget">-</span>
+                    </div>
+                    <div style="font-size: 1em; color: #bdbdbd;">Remain: <span id="detailToTarget">-</span></div>
+                    <div style="font-size: 0.98em; color: #bdbdbd;" id="mpTaskAvgWeek">Avg/week: -</div>
+                    <div style="font-size: 0.98em; color: #bdbdbd;" id="mpTaskAvgMonth">Avg/month: -</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- NEW: Task Breakdown by Activity Name -->
+              <div class="card" style="display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; min-height: 180px; padding: 15px 0 18px 0;">
+                <h3 style="margin-bottom: 5px; margin-left: 15px; font-weight: 700; color: #fff; letter-spacing: 0.01em; text-align: left; align-self: flex-start;">Task Breakdown</h3>
+                <div id="taskBreakdownContainer" style="padding: 0 18px; width: 100%; max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; align-items: stretch;">
+                  <table style="width:100%; color:#e0e0e0; font-size:.85em; border-collapse: separate; border-spacing: 0 8px;">
+                    <thead>
+                      <tr><th style="text-align:left;">Activity</th><th style="text-align:right;">Count</th></tr>
+                    </thead>
+                    <tbody id="taskBreakdownBody">
+                      <tr><td colspan="2" style="text-align:center; color:#bdbdbd;">No data</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <style>
+                  #taskBreakdownContainer {
+                    scrollbar-width: thin;
+                    scrollbar-color: var(--accent, #a78bfa) rgba(0,0,0,0.08);
+                  }
+                  #taskBreakdownContainer::-webkit-scrollbar {
+                    width: 8px;
+                    background: transparent;
+                    transition: background 0.2s;
+                  }
+                  #taskBreakdownContainer::-webkit-scrollbar-thumb {
+                    background: rgba(167,139,250,0.18);
+                    border-radius: 8px;
+                    transition: background 0.2s;
+                    opacity: 0;
+                  }
+                  #taskBreakdownContainer:hover::-webkit-scrollbar-thumb {
+                    background: rgba(167,139,250,0.45);
+                    opacity: 1;
+                  }
+                  #taskBreakdownContainer::-webkit-scrollbar-thumb {
+                    opacity: 0;
+                  }
+                  #taskBreakdownContainer:hover::-webkit-scrollbar-thumb {
+                    opacity: 1;
+                  }
+                  #taskBreakdownContainer::-webkit-scrollbar-corner {
+                    background: transparent;
+                  }
+                  #taskBreakdownContainer {
+                    scrollbar-color: transparent transparent;
+                  }
+                  #taskBreakdownContainer:hover {
+                    scrollbar-color: var(--accent, #a78bfa) rgba(0,0,0,0.08);
+                  }
+                  #taskBreakdownBody tr {
+                    background: var(--panel, #23263a);
+                    border-radius: 10px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    transition: background 0.18s;
+                  }
+                  #taskBreakdownBody td {
+                    padding: 5px 15px;
+                    font-weight: 400;
+                    font-size: 0.9em;
+                  }
+                  #taskBreakdownBody tr:not(:last-child) td {
+                    border-bottom: 1px solid rgba(167,139,250,0.08);
+                  }
+                  #taskBreakdownBody tr:hover {
+                    background: rgba(167,139,250,0.10);
+                  }
+                  #taskBreakdownBody td:first-child {
+                    border-radius: 10px 0 0 10px;
+                  }
+                  #taskBreakdownBody td:last-child {
+                    border-radius: 0 10px 10px 0;
+                  }
+                </style>
+              </div>
+            </div>
+
+            <!-- Summary: full width below KPI row (not scrollable) -->
+            <div class="card" style="margin-top:18px; width:100%; max-height:260px;">
+              <h3>Monthly Task Turnover Summary</h3>
+              <canvas id="summaryBar" style="margin-top:8px; max-height:200px;"></canvas>
+            </div>
+
+            <!-- Monthly Performance (Attendance & Attitude) -->
+            <div class="grid two" style="margin-top:16px;">
+              <!-- Attendance -->
+              <div class="card">
+                <h3>Attendance</h3>
+                <div class="kpi">
+                  <div class="value" id="mpAttendancePct">0%</div>
+                  <div class="label">from points</div>
+                </div>
+                <div class="input" style="margin-top:8px;">
+                  <label for="inpAttendancePoints">Points (0-100)</label>
+                  <input id="inpAttendancePoints" type="number" min="0" max="100" step="1" placeholder="e.g., 95" />
+                </div>
+                
+              </div>
+
+              <!-- Attitude -->
+              <div class="card">
+                <h3>Attitude</h3>
+                <div class="kpi">
+                  <div class="value" id="mpAttitudePct">0%</div>
+                  <div class="label">from points</div>
+                </div>
+                <div class="input" style="margin-top:8px;">
+                  <label for="inpAttitudePoints">Points (0-100)</label>
+                  <input id="inpAttitudePoints" type="number" min="0" max="100" step="1" placeholder="e.g., 90" />
+                </div>
+                <button id="btnSaveKpi" class="btn" style="margin-top:10px; position: absolute; bottom: 10px; right: 10px;">Save KPI Scores</button>
+              </div>
+            </div>
+
+            <!-- Daily entries -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px;">
+              <h3>Daily Entries</h3>
+              <input type="date" id="detailDay" style="background: var(--panel); border:1px solid rgba(255,255,255,0.08); color: var(--text); padding: 6px 10px; border-radius: 10px;" />
+            </div>
+            <table class="table" style="margin-top:8px;">
+              <thead>
+                <tr><th>Time</th><th>Activity</th><th>Count</th><th>Difficulty</th></tr>
+              </thead>
+              <tbody id="detailEntries"></tbody>
+            </table>
+
+            <!-- Monthly entries -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:16px;">
+              <h3>Monthly Entries</h3>
+            </div>
+            <table class="table" style="margin-top:8px;">
+              <thead>
+                <tr><th>Date</th><th>Time</th><th>Activity</th><th>Count</th><th>Difficulty</th></tr>
+              </thead>
+              <tbody id="detailMonthEntries"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Settings panel (toggle) -->
+      <div id="advPanel" class="card hidden" style="margin-top:16px;">
+        <h2>Advanced Settings</h2>
+        <p class="muted">Monthly target tasks per position</p>
+        <div id="posTargets" class="grid two" style="margin-top:10px;">
+          <div class="input"><label>CAD Drafter</label><input class="pos-target" data-pos="CAD Drafter" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+          <div class="input"><label>Data Entry Processor</label><input class="pos-target" data-pos="Data Entry Processor" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+          <div class="input"><label>Project Coordinator</label><input class="pos-target" data-pos="Project Coordinator" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+          <div class="input"><label>Residential Estimator</label><input class="pos-target" data-pos="Residential Estimator" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+          <div class="input"><label>Commercial Estimator</label><input class="pos-target" data-pos="Commercial Estimator" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+          <div class="input"><label>Appointment Setting Specialist</label><input class="pos-target" data-pos="Appointment Setting Specialist" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+          <div class="input"><label>Accounts Receivable Specialist</label><input class="pos-target" data-pos="Accounts Receivable Specialist" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+          <div class="input"><label>Accounts Payable Specialist</label><input class="pos-target" data-pos="Accounts Payable Specialist" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+          <div class="input"><label>CAD and Programming Lead</label><input class="pos-target" data-pos="CAD and Programming Lead" type="number" min="0" step="1" placeholder="e.g., 500" /></div>
+        </div>
+        <button id="btnSavePosTargets" class="btn" style="margin-top:12px;">Save Targets</button>
+        <div id="savePosStatus" class="muted" style="margin-top:8px;"></div>
+        <!-- Performance Weights section is injected by JS -->
+      </div>
+    </main>
+  </div>
+
+
+  <script type="module" src="./admin.js"></script>
+  <!-- Auto-select the first agent to show KPI Detail by default -->
+  <script>
+    (function () {
+      const list = document.getElementById('agentsList');
+      if (!list) return;
+      let done = false;
+      let obs;
+
+      const selectFirst = () => {
+        if (done) return;
+        const first = list.querySelector('.list-item');
+        if (first) {
+          done = true;
+          try { obs && obs.disconnect(); } catch {}
+          first.click(); // triggers admin.js listener -> selectAgent()
+        }
+      };
+
+      // Try immediately (in case the list is already rendered)
+      selectFirst();
+      // Observe for async population
+      obs = new MutationObserver(selectFirst);
+      obs.observe(list, { childList: true });
+    })();
+  </script>
+
+  <!-- Smooth slide animation for Top 10 Agents collapsible -->
+  <script>
+    (function() {
+      const btn = document.getElementById('btnTop10Collapse');
+      const container = document.getElementById('top10Collapsible');
+      if (!btn || !container) return;
+
+      // Helper to set max-height for smooth transition
+      function setMaxHeight(expand) {
+        if (expand) {
+          container.classList.remove('collapsed');
+          container.style.maxHeight = container.scrollHeight + 'px';
+          container.style.opacity = '1';
+        } else {
+          container.style.maxHeight = container.scrollHeight + 'px';
+          void container.offsetHeight;
+          container.classList.add('collapsed');
+          container.style.maxHeight = '0px';
+          container.style.opacity = '0';
+        }
+      }
+
+      // Initial state: collapsed
+      btn.setAttribute('aria-expanded', 'false');
+      setMaxHeight(false);
+
+      function toggleCollapse(e) {
+        e?.preventDefault();
+        const expanded = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!expanded));
+        setMaxHeight(!expanded);
+      }
+
+      // Button toggles
+      btn.addEventListener('click', toggleCollapse);
+
+      // Also allow clicking the card header (h2) to toggle
+      const cardHeader = btn.parentElement?.querySelector('h2');
+      if (cardHeader) {
+        cardHeader.style.cursor = 'pointer';
+        cardHeader.addEventListener('click', toggleCollapse);
+      }
+
+      // On transition end, if collapsed, remove max-height for accessibility
+      container.addEventListener('transitionend', function() {
+        if (container.classList.contains('collapsed')) {
+          container.style.maxHeight = '0px';
+        } else {
+          container.style.maxHeight = '';
+        }
+      });
+    })();
+  </script>
+
+  <script>
+    // Theme toggle logic
+    (function() {
+      const themeToggle = document.getElementById('themeToggle');
+      function getPreferredTheme() {
+        if (localStorage.getItem('theme')) return localStorage.getItem('theme');
+        return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        themeToggle.checked = (theme === 'light');
+      }
+      setTheme(getPreferredTheme());
+      themeToggle.addEventListener('change', function() {
+        setTheme(this.checked ? 'light' : 'dark');
+      });
+    })();
+  </script>
+  <script type="module">
+    import { injectVersionButton } from './version-info.js';
+    injectVersionButton();
+  </script>
+
+  <!-- Add this script to auto-calculate Task Created averages per agent -->
+  <script type="module">
+  // filepath: c:\Users\USER.DESKTOP-CCLT9HT\OneDrive\Documents\KPI NEW\V3\admin.html
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+  // TODO: Replace with your Firebase config
+  const firebaseConfig = {
+    projectId: "your-project-id",
+    apiKey: "your-api-key",
+    authDomain: "your-auth-domain",
+    // ...add all other required config fields from your Firebase project settings...
+  };
+
+  // Initialize Firebase only once
+  let app;
+  if (!window._firebaseApp) {
+    app = initializeApp(firebaseConfig);
+    window._firebaseApp = app;
+  } else {
+    app = window._firebaseApp;
+  }
+  const db = getFirestore(app);
+
+  // Helper to get the selected agent's ID (adjust as needed for your app)
+  function getSelectedAgentId() {
+    // Debug: log all .list-item elements and their data-agentid
+    const allItems = Array.from(document.querySelectorAll('.list-item'));
+    console.log('[TaskBreakdown][DEBUG] .list-item count:', allItems.length);
+    allItems.forEach((el, i) => {
+      console.log(`[TaskBreakdown][DEBUG] .list-item[${i}] data-agentid:`, el.dataset.agentid, 'data-agentId:', el.dataset.agentId, 'classList:', el.className);
+    });
+
+    // Try to get the selected agent
+    let selected = document.querySelector('.list-item.selected');
+    // If none selected, auto-select the first agent
+    if (!selected) {
+      const first = document.querySelector('.list-item');
+      if (first) {
+        first.classList.add('selected');
+        selected = first;
+      }
+    }
+    // Return the agentId (case-insensitive attribute)
+    if (selected) {
+      // Try both data-agentid and data-agent-id for robustness
+      return selected.dataset.agentid || selected.dataset.agentId || null;
+    }
+    return null;
+  }
+
+  // Helper to get the selected month (YYYY-MM)
+  function getSelectedMonth() {
+    const monthInput = document.getElementById('adminMonth');
+    return monthInput ? monthInput.value : null;
+  }
+
+  // Calculate and update averages for Task Created card
+
+
+  function updateTaskCreatedAveragesAndBreakdown() {
+    // Read from Monthly Entries table (tbody#detailMonthEntries)
+    const monthTable = document.getElementById('detailMonthEntries');
+    const tbody = document.getElementById('taskBreakdownBody');
+    if (!monthTable || !tbody) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#bdbdbd;">No data</td></tr>';
+      console.warn('[TaskBreakdown][DEBUG] No monthTable or tbody found');
+      return;
+    }
+    // Gather all rows
+    const rows = Array.from(monthTable.querySelectorAll('tr'));
+    console.log('[TaskBreakdown][DEBUG] Found rows:', rows.length, rows);
+    const activityCounts = {};
+    rows.forEach((tr, idx) => {
+      const tds = tr.querySelectorAll('td');
+      console.log(`[TaskBreakdown][DEBUG] Row ${idx} tds:`, tds.length, tds);
+      if (tds.length >= 4) {
+        let activity = tds[2].textContent.trim().toLowerCase();
+        let count = parseInt(tds[3].textContent.trim(), 10);
+        console.log(`[TaskBreakdown][DEBUG] Row ${idx} activity:`, activity, 'count:', count);
+        if (!activity) activity = 'other';
+        if (!activityCounts[activity]) activityCounts[activity] = 0;
+        activityCounts[activity] += isNaN(count) ? 0 : count;
+      } else {
+        console.warn(`[TaskBreakdown][DEBUG] Row ${idx} skipped, not enough tds`);
+      }
+    });
+    const keys = Object.keys(activityCounts);
+    if (keys.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; color:#bdbdbd;">No data</td></tr>';
+      console.warn('[TaskBreakdown][DEBUG] No activities found');
+    } else {
+      keys.sort((a, b) => activityCounts[b] - activityCounts[a]);
+      tbody.innerHTML = keys.map(name => {
+        const displayName = name.replace(/\b\w/g, c => c.toUpperCase());
+        return `<tr><td>${displayName}</td><td style="text-align:right;">${activityCounts[name]}</td></tr>`;
+      }).join('');
+      console.log('[TaskBreakdown][DEBUG] Rendered breakdown:', activityCounts);
+    }
+    // Optionally, clear averages since we can't compute them from table
+    document.getElementById('mpTaskAvgWeek').textContent = '';
+    document.getElementById('mpTaskAvgMonth').textContent = '';
+  }
+
+  // Listen for agent or month change and update averages
+
+  function setupTaskCreatedAveragesListener() {
+    // Listen for agent selection change
+    document.getElementById('agentsList')?.addEventListener('click', e => {
+      if (e.target.closest('.list-item')) setTimeout(updateTaskCreatedAveragesAndBreakdown, 100);
+    });
+    // Listen for month change
+    document.getElementById('adminMonth')?.addEventListener('change', () => {
+      setTimeout(updateTaskCreatedAveragesAndBreakdown, 100);
+    });
+
+    // Observe #agentsList for population, then select first and update
+    const agentsList = document.getElementById('agentsList');
+    if (agentsList) {
+      const observer = new MutationObserver(() => {
+        const first = agentsList.querySelector('.list-item');
+        if (first) {
+          if (!first.classList.contains('selected')) first.classList.add('selected');
+          updateTaskCreatedAveragesAndBreakdown();
+          observer.disconnect();
+        }
+      });
+      observer.observe(agentsList, { childList: true });
+      // In case already populated
+      const first = agentsList.querySelector('.list-item');
+      if (first) {
+        if (!first.classList.contains('selected')) first.classList.add('selected');
+        updateTaskCreatedAveragesAndBreakdown();
+        observer.disconnect();
+      }
+    }
+
+    // Always attach MutationObserver to #detailMonthEntries, even if not present yet
+    function attachMonthTableObserver() {
+      const monthTable = document.getElementById('detailMonthEntries');
+      if (monthTable && !monthTable._taskBreakdownObserver) {
+        const mo = new MutationObserver(() => {
+          updateTaskCreatedAveragesAndBreakdown();
+        });
+        mo.observe(monthTable, { childList: true, subtree: true });
+        monthTable._taskBreakdownObserver = mo;
+        console.log('[TaskBreakdown][DEBUG] MutationObserver attached to #detailMonthEntries');
+      } else if (!monthTable) {
+        // Try again in 500ms if not present
+        setTimeout(attachMonthTableObserver, 500);
+      }
+    }
+    attachMonthTableObserver();
+  }
+
+  setupTaskCreatedAveragesListener();
+  </script>
+</body>
+</body>
+<script>
+// Ensure weightsPanel is always below advPanel after both exist
+function moveWeightsPanelBelowAdvPanel() {
+  var adv = document.getElementById('advPanel');
+  var weights = document.getElementById('weightsPanel');
+  if (adv && weights && adv.parentNode === weights.parentNode) {
+    adv.parentNode.insertBefore(weights, adv.nextSibling);
+  }
+}
+// Try immediately and also on DOM changes
+moveWeightsPanelBelowAdvPanel();
+var obs = new MutationObserver(moveWeightsPanelBelowAdvPanel);
+obs.observe(document.body, { childList: true, subtree: true });
+</script>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>
+</html>

@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>KPI Manager - Sign In</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --font-sans: 'Lexend', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; }
+    html, body { font-family: var(--font-sans); }
+    button, input, select, textarea { font-family: inherit; }
+
+    /* Seamless page gradient (keeps cards/panels flat) */
+    body {
+      background: linear-gradient(180deg, #0e1220 0%, #0b0f1c 50%, #0a0d18 100%) !important;
+      background-attachment: fixed;
+    }
+
+    /* Light theme variables */
+    :root[data-theme='light'] {
+      --card: #f8fafc;
+      --panel: #f1f5f9;
+      --text: #1e293b;
+      --accent: #6366f1;
+      --accent-2: #a78bfa;
+      --danger: #ef4444;
+      --danger-hover: #f05252;
+      --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    [data-theme='light'] body {
+      background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+      color: var(--text);
+    }
+    [data-theme='light'] .card,
+    [data-theme='light'] .main,
+    [data-theme='light'] .topbar,
+    [data-theme='light'] .sidebar {
+      background-color: var(--card, #fff) !important;
+      color: var(--text, #1e293b);
+      box-shadow: var(--shadow, none);
+    }
+    [data-theme='light'] .btn,
+    [data-theme='light'] .btn.secondary {
+      background: #6366f1;
+      color: #fff;
+    }
+    [data-theme='light'] .btn.danger {
+      background: #ef4444;
+      color: #fff;
+    }
+    [data-theme='light'] .btn.secondary {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    [data-theme='light'] .muted {
+      color: #64748b;
+    }
+    [data-theme='light'] input,
+    [data-theme='light'] select {
+      background: #fff;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+    }
+    [data-theme='light'] .badge {
+      background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+      color: #3730a3;
+    }
+    /* Theme toggle switch */
+    .theme-switch {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      margin-right: 0;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+    }
+    .theme-switch input[type="checkbox"] {
+      width: 36px;
+      height: 20px;
+      appearance: none;
+      background: #64748b;
+      outline: none;
+      border-radius: 999px;
+      position: relative;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .theme-switch input[type="checkbox"]:checked {
+      background: #6366f1;
+    }
+    .theme-switch input[type="checkbox"]::before {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+    }
+    .theme-switch input[type="checkbox"]:checked::before {
+      transform: translateX(16px);
+    }
+    .theme-switch .icon {
+      font-size: 17px;
+      vertical-align: middle;
+      opacity: 0.85;
+    }
+
+    
+    .theme-switch-toggle .switch {
+      position: relative;
+      width: 70px;
+      height: 32px;
+      background: #23263a;
+      border-radius: 999px;
+      border: 1.5px solid #e5e7eb;
+      transition: background 0.2s, border 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    .theme-switch-toggle input[type="checkbox"] {
+      appearance: none;
+      width: 70px;
+      height: 32px;
+      margin: 0;
+      position: absolute;
+      left: 0; top: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .theme-switch-toggle .slider {
+      position: absolute;
+      left: 0; top: 0;
+      width: 70px;
+      height: 32px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      transition: background 0.2s;
+      z-index: 1;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .slider {
+      background: #23263a;
+    }
+    .theme-switch-toggle .thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: left 0.22s cubic-bezier(.4,0,.2,1), background 0.2s;
+      z-index: 3;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb {
+      left: 41px;
+      background: #fff;
+    }
+    .theme-switch-toggle .thumb .moon {
+      display: block;
+      color: #fbbf24;
+      font-size: 18px;
+      filter: drop-shadow(0 0 1px #fbbf24);
+      background-color: #0a0d18;
+      border-radius: 100%;
+    }
+    .theme-switch-toggle .thumb .sun {
+      display: none;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb .moon {
+      display: none;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb .sun {
+      display: block;
+      color: #fbbf24;
+      font-size: 18px;
+      filter: drop-shadow(0 0 1px #fbbf24);
+    }
+    .theme-switch-toggle .icon-sun,
+    .theme-switch-toggle .icon-moon {
+      font-size: 18px;
+      margin: 0 2px;
+      opacity: 0.85;
+      pointer-events: none;
+      transition: color 0.2s, opacity 0.2s;
+    }
+    .theme-switch-toggle .icon-sun {
+      color: #fbbf24;
+      margin-right: 6px;
+    }
+    .theme-switch-toggle .icon-moon {
+      color: #64748b;
+      margin-left: 6px;
+    }
+  </style>
+</head>
+<body class="auth-page">
+  <div class="auth-wrap">
+    <div class="auth-split">
+      <aside class="auth-side">
+        <div class="side-content">
+          <h1>Welcome to Remote Services KPI Manager</h1>
+          <p class="muted">Track tasks, attendance, and performance in one place.</p>
+
+          <label class="theme-switch-toggle" title="Toggle light/dark mode">
+        <span class="switch">
+          <input type="checkbox" id="themeToggle" />
+          <span class="slider"></span>
+          <span class="thumb">
+            <span class="moon">&#127769;</span>
+            <span class="sun">&#9728;</span>
+          </span>
+        </span>
+      </label>
+          
+        </div>
+      </aside>
+
+      <div class="card auth-card">
+        <div class="brand" style="margin-bottom:16px;">
+          <span class="dot"></span>
+          <div class="title">Remote Services KPI Manager</div>
+        </div>
+
+        <div id="auth-forms">
+          <div id="login-form">
+            <h2>Welcome back, bhie!</h2>
+            <p class="muted">Sign in to continue</p>
+            <div class="input" style="margin-top:12px;">
+              <label for="login-email">Email</label>
+              <input id="login-email" type="email" placeholder="you@example.com" required />
+            </div>
+            <div class="input">
+              <label for="login-password" style="margin-top: 5px;">Password</label>
+              <input id="login-password" type="password" placeholder="••••••••" required />
+            </div>
+            
+            <button id="btn-login" class="btn block" style="margin-top: 15px;">Sign In</button>
+            <div style="margin-top:10px; text-align:center; color: var(--muted);">
+              Bago ka dito 'te?
+              <a id="to-register" href="#" style="color: var(--accent)">Create an account</a>
+            </div>
+
+            <div style="margin-top:10px; text-align:center; color: var(--muted);">
+              Limot agad password?
+              <a id="link-forgot" href="#" style="color: var(--accent)">Forgot password?</a>
+            </div>
+          </div>
+
+          <div id="register-form" class="hidden">
+            <h2>Create account</h2>
+
+            <div class="form-row" style="margin-top:12px;">
+              <div class="input">
+                <label for="reg-role">Role</label>
+                <select id="reg-role">
+                  <option value="agent" selected>Agent</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="input">
+                <label for="reg-name">Full name</label>
+                <input id="reg-name" type="text" placeholder="Jane Doe" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="input">
+                <label for="reg-email">Email</label>
+                <input id="reg-email" type="email" placeholder="you@example.com" required />
+              </div>
+              <div class="input">
+                <label for="reg-password">Password</label>
+                <input id="reg-password" type="password" placeholder="••••••••" required />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="input" id="wrap-client">
+                <label for="reg-client">Client</label>
+                <select id="reg-client" required>
+                  <option value="" disabled selected>Select client</option>
+                  <option value="KG Stevens">KG Stevens</option>
+                  <option value="McDermott">McDermott</option>
+                </select>
+              </div>
+              <div class="input" id="wrap-position">
+                <label for="reg-position">Position</label>
+                <select id="reg-position" required>
+                  <option value="" disabled selected>Select position</option>
+                  <option>CAD Drafter</option>
+                  <option>Data Entry Processor</option>
+                  <option>Project Coordinator</option>
+                  <option>Residential Estimator</option>
+                  <option>Commercial Estimator</option>
+                  <option>Appointment Setting Specialist</option>
+                  <option>Accounts Receivable Specialist</option>
+                  <option>Accounts Payable Specialist</option>
+                  <option>CAD and Programming Lead</option>
+                  <option value="Estimator (Residential/Commercial)">Estimator (Residential/Commercial)</option>
+                  <option value="Data Processor - Invoicing Clerk">Data Processor - Invoicing Clerk</option>
+                </select>
+              </div>
+            </div>
+            <button id="btn-register" class="btn block">Create Account</button>
+            <small id="reg-status" class="muted"></small>
+            <div style="margin-top:10px; text-align:center; color: var(--muted);">
+              Already have an account?
+              <a id="to-login" href="#" style="color: var(--accent)">Sign in</a>
+            </div>
+          </div>
+        </div>
+
+        <div id="auth-error" class="badge" style="display:none; margin-top:12px; border-color: rgba(248,113,113,0.35); background: rgba(248,113,113,0.12); color: #fff; align-items: center; align-content: center; text-align: center;"></div>
+      </div>
+    </div>
+  </div>
+
+
+  <script type="module">
+    import {
+      auth, db,
+      onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+      doc, getDoc, setDoc, serverTimestamp
+    } from './firebase-config.js';
+
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const toRegister = document.getElementById('to-register');
+    const toLogin = document.getElementById('to-login');
+    const errorBox = document.getElementById('auth-error');
+    const showError = (msg) => {
+      errorBox.textContent = msg;
+      errorBox.style.display = 'inline-flex';
+      setTimeout(() => (errorBox.style.display = 'none'), 6000);
+    };
+
+    // Lazy-load sendPasswordResetEmail from Firebase CDN and cache it
+    let __authMod = null;
+    async function getSendPasswordResetEmail() {
+      if (__authMod?.sendPasswordResetEmail) return __authMod.sendPasswordResetEmail;
+      __authMod = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js');
+      return __authMod.sendPasswordResetEmail;
+    }
+
+    toRegister.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginForm.classList.add('hidden');
+      registerForm.classList.remove('hidden');
+    });
+    toLogin.addEventListener('click', (e) => {
+      e.preventDefault();
+      registerForm.classList.add('hidden');
+      loginForm.classList.remove('hidden');
+    });
+
+    // Role-based field toggling (uniform behavior)
+    const roleEl = document.getElementById('reg-role');
+    const wrapClient = document.getElementById('wrap-client');
+    const wrapPosition = document.getElementById('wrap-position');
+    const clientEl = document.getElementById('reg-client');
+    const positionEl = document.getElementById('reg-position');
+
+    const updateRoleFields = () => {
+      const isAdmin = roleEl.value === 'admin';
+      wrapClient.classList.toggle('hidden', isAdmin);
+      wrapPosition.classList.toggle('hidden', isAdmin);
+      // Toggle required for hidden fields to keep validation uniform
+      clientEl.required = !isAdmin;
+      positionEl.required = !isAdmin;
+      if (isAdmin) {
+        clientEl.value = '';
+        positionEl.value = '';
+      }
+    };
+    roleEl.addEventListener('change', updateRoleFields);
+    updateRoleFields();
+
+    document.getElementById('btn-register').addEventListener('click', async () => {
+      const name = (document.getElementById('reg-name')).value.trim();
+      const client = (document.getElementById('reg-client')).value.trim();
+      const position = (document.getElementById('reg-position')).value;
+      const role = (document.getElementById('reg-role')).value;
+      const email = (document.getElementById('reg-email')).value.trim();
+      const password = (document.getElementById('reg-password')).value;
+
+      if (!name || !email || !password) return showError('Please fill name, email and password.');
+      if (role === 'agent' && (!client || !position)) return showError('Please select client and position for Agent.');
+
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const profile = {
+          name,
+          role,
+          email,
+          // Duplicate into nested profile to satisfy Firestore rules
+          profile: { role },
+          createdAt: serverTimestamp()
+        };
+        if (role === 'agent') {
+          profile.client = client;
+          profile.position = position;
+          // Optional: also include in nested profile for consistency
+          profile.profile.client = client;
+          profile.profile.position = position;
+        }
+        await setDoc(doc(db, 'users', cred.user.uid), profile, { merge: true });
+        window.location.href = role === 'admin' ? './admin.html' : './agent.html';
+      } catch (e) {
+        showError(e.message);
+      }
+    });
+
+    document.getElementById('btn-login').addEventListener('click', async () => {
+      const email = (document.getElementById('login-email')).value.trim();
+      const password = (document.getElementById('login-password')).value;
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        const usnap = await getDoc(doc(db, 'users', cred.user.uid));
+        const u = usnap.data() || {};
+        const role = u.role || u.profile?.role || 'agent';
+        window.location.href = role === 'admin' ? './admin.html' : './agent.html';
+      } catch (e) {
+        showError(e.message);
+      }
+    });
+
+    // New: forgot password handler (uses lazy-loaded function)
+    const forgotLink = document.getElementById('link-forgot');
+    forgotLink?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const email = (document.getElementById('login-email')).value.trim();
+      if (!email) {
+        showError('Enter your email above, then click “Forgot password?”');
+        return;
+      }
+      try {
+        const sendReset = await getSendPasswordResetEmail();
+        await sendReset(auth, email);
+        showError('Password reset email sent. Check your inbox.');
+      } catch (err) {
+        showError(err.message || 'Unable to send reset email.');
+      }
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      try {
+        const usnap = await getDoc(doc(db, 'users', user.uid));
+        const u = usnap.data() || {};
+        const role = u.role || u.profile?.role || 'agent';
+        window.location.href = role === 'admin' ? './admin.html' : './agent.html';
+      } catch {
+        window.location.href = './agent.html';
+      }
+    });
+
+    // Theme toggle logic
+    (function() {
+      const themeToggle = document.getElementById('themeToggle');
+      function getPreferredTheme() {
+        if (localStorage.getItem('theme')) return localStorage.getItem('theme');
+        return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        themeToggle.checked = (theme === 'light');
+      }
+      setTheme(getPreferredTheme());
+      themeToggle.addEventListener('change', function() {
+        setTheme(this.checked ? 'light' : 'dark');
+      });
+    })();
+  </script>
+</body>
+</html>

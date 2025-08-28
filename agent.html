@@ -1,0 +1,1311 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>KPI Manager - Agent Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="icon" type="image/png" href="logo.png" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Flatpickr base CSS and monthSelect plugin CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <!-- NEW: official dark theme to match original calendar look -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/style.css">
+  <style>
+    /* Flat background overrides: remove gradients on surfaces */
+    body.agent-page,
+    .main,
+    .sidebar,
+    .topbar,
+    .card {
+      background-color: var(--card, var(--panel));
+      background-image: none !important;
+    }
+
+    /* Seamless page gradient (keeps cards/panels flat) */
+    body.agent-page {
+      background: linear-gradient(180deg, #0e1220 0%, #0b0f1c 50%, #0a0d18 100%) !important;
+      background-attachment: fixed;
+    }
+
+    /* Pin logout at the very bottom of the sidebar */
+    .sidebar { display: flex; flex-direction: column; }
+    .sidebar .nav { display: flex; flex-direction: column; gap: 8px; }
+    .sidebar-spacer { flex: 1 1 auto; }
+
+    /* Logout button: same look as admin */
+    #btn-logout {
+      align-self: stretch;
+      margin-top: 12px;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: var(--radius, 10px);
+      border: 1px solid rgba(255,255,255,0.08);
+      background: var(--danger, #ef4444);
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      cursor: pointer;
+      box-shadow: var(--shadow, none);
+      background-image: none !important;
+      transition: background-color .15s ease, transform .05s ease;
+    }
+    #btn-logout:hover { background: var(--danger-hover, #f05252); }
+    #btn-logout:active { transform: translateY(1px); }
+    #btn-logout:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* NEW: Base font styles */
+    :root { --font-sans: 'Lexend', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif; }
+    html, body { font-family: var(--font-sans); }
+    button, input, select, textarea { font-family: inherit; }
+
+    /* Task Progress ring (lightweight copy) */
+    .progress-tile { display:flex; align-items:center; gap:14px; text-align:left; }
+    .circle-progress {
+      position: relative; width: 110px; height: 110px; border-radius: 50%;
+      background: conic-gradient(var(--accent) calc(var(--p, 0) * 1%), #333 0);
+      display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px;
+      aspect-ratio: 1/1;
+      flex-shrink: 0;
+    }
+    .circle-inner {
+      position:absolute; width: 78%; height:78%; border-radius:50%; background: var(--panel);
+      display:flex; align-items:center; justify-content:center; font-size:16px;
+    }
+    .progress-meta { display:flex; flex-direction:column; gap:2px; font-size:14px; color: var(--text); }
+
+    /* Add a four-column grid for the KPI overview row */
+    .grid.four {
+      display: grid;
+      grid-template-columns: 1fr 1.7fr 0.8fr 0.8fr; /* Make summary wider, last two smaller */
+      gap: 18px;
+      width: 100%;
+    }
+
+    /* Prevent Task Progress and Summary cards from expanding in height */
+    .grid.four > .card {
+      height: 220px;
+      max-height: 220px;
+      min-height: 220px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Prevent the summary chart from expanding */
+    #agSummaryBar {
+      height: 140px !important;
+      max-height: 140px !important;
+      min-height: 140px !important;
+      /* Prevent resizing */
+      resize: none;
+      display: block;
+    }
+    /* Prevent Task Progress ring from overflowing */
+    #agTaskProgressTile {
+      flex: 1 1 auto;
+      overflow: hidden;
+    }
+
+    /* Add margin and fixed height + scroll for activity/entries containers */
+    .grid.two > .card {
+      margin-top: 18px;
+      height: 420px;
+      max-height: 420px;
+      min-height: 420px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    /* Table scroll region for both tables */
+    #todayTable, #monthTable {
+      display: block;
+      max-height: 400px;
+      min-height: 400px;
+      overflow-y: auto;
+      width: 100%;
+    }
+    /* Ensure table header stays visible */
+    .table thead, .table tr {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+    .table tbody {
+      display: block;
+      width: 100%;
+    }
+
+    /* Light theme variables */
+    :root[data-theme='light'] {
+      --card: #f8fafc;
+      --panel: #f1f5f9;
+      --text: #1e293b;
+      --accent: #6366f1;
+      --accent-2: #a78bfa;
+      --danger: #ef4444;
+      --danger-hover: #f05252;
+      --shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    [data-theme='light'] body.agent-page {
+      background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+      color: var(--text);
+    }
+    [data-theme='light'] .sidebar,
+    [data-theme='light'] .main,
+    [data-theme='light'] .topbar,
+    [data-theme='light'] .card {
+      background-color: var(--card, #fff) !important;
+      color: var(--text, #1e293b);
+      box-shadow: var(--shadow, none);
+    }
+    [data-theme='light'] .progress-tile,
+    [data-theme='light'] .circle-inner {
+      background: var(--panel, #f1f5f9) !important;
+      color: var(--text, #1e293b);
+    }
+    [data-theme='light'] .circle-progress {
+      background: conic-gradient(var(--accent) calc(var(--p, 0) * 1%), #e5e7eb 0);
+      color: var(--text, #1e293b);
+    }
+    [data-theme='light'] .badge {
+      background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+      color: #3730a3;
+    }
+    [data-theme='light'] .btn,
+    [data-theme='light'] .btn.secondary {
+      background: #6366f1;
+      color: #fff;
+    }
+    [data-theme='light'] .btn.danger {
+      background: #ef4444;
+      color: #fff;
+    }
+    [data-theme='light'] .btn.secondary {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    [data-theme='light'] .muted {
+      color: #64748b;
+    }
+    [data-theme='light'] .table thead th,
+    [data-theme='light'] .table tbody td {
+      color: #334155;
+      background: transparent;
+    }
+    [data-theme='light'] .table {
+      background: transparent;
+    }
+    [data-theme='light'] input,
+    [data-theme='light'] select {
+      background: #fff;
+      color: #1e293b;
+      border: 1px solid #cbd5e1;
+    }
+    [data-theme='light'] .sidebar .brand .title {
+      color: #3730a3;
+    }
+    [data-theme='light'] .sidebar .brand .dot {
+      background: #6366f1;
+    }
+
+    
+    .theme-switch-toggle .switch {
+      position: relative;
+      width: 70px;
+      height: 32px;
+      background: #23263a;
+      border-radius: 999px;
+      border: 1.5px solid #e5e7eb;
+      transition: background 0.2s, border 0.2s;
+      display: flex;
+      align-items: center;
+    }
+    .theme-switch-toggle input[type="checkbox"] {
+      appearance: none;
+      width: 70px;
+      height: 32px;
+      margin: 0;
+      position: absolute;
+      left: 0; top: 0;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .theme-switch-toggle .slider {
+      position: absolute;
+      left: 0; top: 0;
+      width: 70px;
+      height: 32px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      transition: background 0.2s;
+      z-index: 1;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .slider {
+      background: #23263a;
+    }
+    .theme-switch-toggle .thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: left 0.22s cubic-bezier(.4,0,.2,1), background 0.2s;
+      z-index: 3;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb {
+      left: 41px;
+      background: #fff;
+    }
+    .theme-switch-toggle .thumb .moon {
+      display: block;
+      color: #fbbf24;
+      font-size: 18px;
+      filter: drop-shadow(0 0 1px #fbbf24);
+      background-color: #0a0d18;
+      border-radius: 100%;
+    }
+    .theme-switch-toggle .thumb .sun {
+      display: none;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb .moon {
+      display: none;
+    }
+    .theme-switch-toggle input[type="checkbox"]:checked ~ .thumb .sun {
+      display: block;
+      color: #fbbf24;
+      font-size: 18px;
+      filter: drop-shadow(0 0 1px #fbbf24);
+    }
+    .theme-switch-toggle .icon-sun,
+    .theme-switch-toggle .icon-moon {
+      font-size: 18px;
+      margin: 0 2px;
+      opacity: 0.85;
+      pointer-events: none;
+      transition: color 0.2s, opacity 0.2s;
+    }
+    .theme-switch-toggle .icon-sun {
+      color: #fbbf24;
+      margin-right: 6px;
+    }
+    .theme-switch-toggle .icon-moon {
+      color: #64748b;
+      margin-left: 6px;
+    }
+
+    /* Custom scrollbar for scrollable cards (Agent) */
+    .card.scrollable {
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent, #a78bfa) rgba(0,0,0,0.08);
+      overflow-y: auto;
+    }
+    .card.scrollable::-webkit-scrollbar {
+      width: 8px;
+      background: transparent;
+      transition: background 0.2s;
+    }
+    .card.scrollable::-webkit-scrollbar-thumb {
+      background: rgba(167,139,250,0.18);
+      border-radius: 8px;
+      transition: background 0.2s;
+      opacity: 0;
+    }
+    .card.scrollable:hover::-webkit-scrollbar-thumb {
+      background: rgba(167,139,250,0.45);
+      opacity: 1;
+    }
+    .card.scrollable::-webkit-scrollbar-thumb {
+      opacity: 0;
+    }
+    .card.scrollable:hover::-webkit-scrollbar-thumb {
+      opacity: 1;
+    }
+    .card.scrollable::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    /* Hide scrollbar when not hovered (Firefox) */
+    .card.scrollable {
+      scrollbar-color: transparent transparent;
+    }
+    .card.scrollable:hover {
+      scrollbar-color: var(--accent, #a78bfa) rgba(0,0,0,0.08);
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="agent-page">
+  <div class="container">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="dot"></span>
+        <div class="title">KPI Manager</div>
+      </div>
+      <div class="nav">
+        <a href="#" id="navDashboard" class="active">Dashboard</a>
+        <a href="#" id="navProfile">Profile</a>
+      </div>
+
+      <!-- Ensure spacer + styled logout button at the very bottom -->
+      <div class="sidebar-spacer"></div>
+      <button id="btn-logout" class="btn danger">Logout</button>
+      <!-- Version Info button will be injected here -->
+    </aside>
+
+    <main class="main">
+      <div class="topbar" style="display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <button class="hamburger" id="toggleSidebar">☰ Menu</button>
+          <div class="badge hidden" id="welcomeBadge">Loading profile…</div>
+        </div>
+        <!-- Theme switch toggle in main panel top right -->
+        <label class="theme-switch-toggle" title="Toggle light/dark mode">
+          <span class="switch">
+            <input type="checkbox" id="themeToggle" />
+            <span class="slider"></span>
+            <span class="thumb">
+              <span class="moon">&#127769;</span>
+              <span class="sun">&#9728;</span>
+            </span>
+          </span>
+        </label>
+      </div>
+
+      <!-- NEW: Dashboard view wrapper -->
+      <div id="dashboardPanel">
+        <!-- NEW: KPI Overview - now in a single row -->
+        <div class="grid three" style="margin-top:12px; grid-template-columns: .50fr .50fr 1.2fr; gap: 18px;">
+          <!-- Combined Task Progress & Task Created Card -->
+           <!-- Overall Performance Card -->
+          <div class="card kpi-card" style="padding:24px 24px 18px 24px; min-height:220px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div>
+              <div style="font-size:1.1rem; font-weight:600; color:#fff; letter-spacing:0.01em;">Overall Performance</div>
+              <div class="kpi" style="margin-top:18px;">
+                <div class="value" id="agOverallPct" style="font-size:2.1rem; color:#a78bfa;">0%</div>
+                <div class="label" style="font-size:1rem; color:#fff;">Task 50% • Attendance 30% • Attitude 20%</div>
+              </div>
+            </div>
+            <div class="muted" id="agOverallMsg" style="margin-top:18px;"></div>
+          </div>
+          <div class="card kpi-card" style="padding:0; display:flex; flex-direction:column; justify-content:space-between; min-height:220px;">
+            <div style="display:flex; align-items:center; gap:18px; padding:24px 24px 0 24px;">
+
+              
+              <div class="circle-progress" id="agTaskProgress" style="--p: 0; min-width:90px; width:90px; height:90px;">
+                <div class="circle-inner">
+                  <div id="agTaskProgressPct" style="font-size:1.5rem;">0%</div>
+                </div>
+              </div>
+              <div style="flex:1;">
+                <div style="font-size:1.1rem; font-weight:600; color:#fff; letter-spacing:0.01em;">Task Progress</div>
+                <div class="muted" style="margin-top:2px;">This month</div>
+                <div class="muted" style="margin-top:2px;">Tasks: <span id="agDetailTotal">0</span></div>
+                <div class="muted" style="margin-top:2px;">Target: <span id="agDetailTarget">-</span> • Remaining: <span id="agDetailToTarget">-</span></div>
+              </div>
+            </div>
+            <div style="background:#23263a; border-radius:0 0 18px 18px; padding:18px 24px 14px 24px; margin-top:18px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div>
+                  <div style="font-size:1.05rem; font-weight:600; color:#a78bfa;">Task Created</div>
+                  <div class="muted" id="agTaskMeta" style="margin-top:2px;">0 / 0</div>
+                  <div class="muted" id="agTaskMsg" style="margin-top:6px;"></div>
+                </div>
+                <div class="kpi" style="margin-left:18px;">
+                  <div class="value" id="agTaskPct" style="color:#fff; font-size:1.4rem;">0%</div>
+                  <div class="label" style="font-size:0.95rem; color:#a78bfa;">vs target</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Summary Card (unchanged) -->
+          <div class="card kpi-card" style="padding:24px 24px 18px 24px; min-height:220px;">
+            <div style="font-size:1.1rem; font-weight:600; color:#fff; letter-spacing:0.01em;">Summary</div>
+            <canvas id="agSummaryBar" style="margin-top:18px;"></canvas>
+          </div>
+
+          
+        </div>
+
+
+        <div class="grid three" style="display:grid; grid-template-columns: 0.7fr 1.3fr 1.3fr; gap:18px; margin-top:18px;">
+          <!-- Submit Task container -->
+          <div class="card scrollable" style="max-height:700px; overflow-y:auto;">
+            <h2>Submit Task Manually</h2>
+            <p class="muted">Log activities to update your KPIs in real time.</p>
+            <div class="form-row" style="margin-top:10px; flex-direction:column; gap:14px; display:flex;">
+              <!-- Manual entry section -->
+              <div class="input">
+                <label for="activity">Activity name</label>
+                <input type="text" id="activity" placeholder="e.g., Calls handled" />
+              </div>
+              <div class="input">
+                <label for="count">Number completed</label>
+                <input type="number" id="count" min="1" step="1" placeholder="e.g., 10" />
+              </div>
+              <button id="btn-submit" class="btn" style="margin-top:0;">Add Entry</button>
+              <!-- Excel import section -->
+              <div class="input">
+                <h2>Submit Task from Excel</h2>
+                <label for="excelPaste">Paste activities from Excel</label>
+                <textarea
+                  id="excelPaste"
+                  rows="6"
+                  style="
+                    background: var(--panel);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    color: var(--text);
+                    padding: 8px 10px;
+                    border-radius: 10px;
+                    font-family: inherit;
+                    font-size: 13px;
+                    width: 100%;
+                    min-width: 0;
+                    max-width: 100%;
+                    min-height: 90px;
+                    max-height: 120px;
+                    resize: none;
+                    box-sizing: border-box;
+                    line-height: 1.5;
+                    margin-top: 0;
+                    margin-bottom: 0;
+                    box-shadow: var(--shadow, none);
+                    transition: border-color .15s;
+                  "
+                  placeholder="Paste text from excel..."
+                ></textarea>
+                <button id="importExcelBtn" type="button" class="btn" style="margin-top:8px;">Import Activities</button>
+                <div id="importStatus" class="muted" style="margin-top:6px;"></div>
+              </div>
+            </div>
+            <div id="submitStatus" class="muted" style="margin-top:8px;"></div>
+          </div>
+
+          <!-- Today's Activity container -->
+          <div class="card scrollable" style="max-height:700px; overflow-y:auto;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <h2>Today's Activity</h2>
+              <input type="date" id="todayDay" class="input" style="background: var(--panel); border:1px solid rgba(255,255,255,0.08); color: var(--text); padding: 8px 10px; border-radius: 10px;" />
+            </div>
+            <table class="table" style="margin-top:10px;">
+              <thead>
+                <tr><th>Time</th><th>Activity</th><th>Count</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="todayTable"></tbody>
+            </table>
+          </div>
+
+          <!-- Monthly Entries container -->
+          <div class="card scrollable" style="max-height:700px; overflow-y:auto;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <h2>Monthly Entries</h2>
+              <input type="month" id="monthPicker" class="input" style="background: var(--panel); border:1px solid rgba(255,255,255,0.08); color: var(--text); padding: 8px 10px; border-radius: 10px;" />
+            </div>
+            <table class="table" style="margin-top:10px;">
+              <thead>
+                <tr><th>Date</th><th>Time</th><th>Activity</th><th>Count</th><th>Difficulty</th></tr>
+              </thead>
+              <tbody id="monthTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- NEW: Profile view wrapper (hidden by default) -->
+      <div id="profilePanel" class="card scrollable hidden" style="margin-top:16px; max-height:720px; overflow-y:auto;">
+        <h2>Your Profile</h2>
+        <div style="display:flex; gap:14px; flex-wrap:wrap; margin-top:8px;">
+          <span class="badge">Name: <strong id="profName" style="margin-left:6px;">-</strong></span>
+          <span class="badge">Email: <strong id="profEmail" style="margin-left:6px;">-</strong></span>
+          <span class="badge">Client: <strong id="profClient" style="margin-left:6px;">-</strong></span>
+          <span class="badge">Position: <strong id="profPosition" style="margin-left:6px;">-</strong></span>
+          <span class="badge">Role: <strong id="profRole" style="margin-left:6px;">-</strong></span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="./agent.js"></script>
+  <!-- Flatpickr core + monthSelect plugin -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/plugins/monthSelect/index.js"></script>
+  <script type="module">
+    import { injectVersionButton } from './version-info.js';
+    injectVersionButton();
+    import { auth, db, onAuthStateChanged, doc, getDoc, setDoc, serverTimestamp, getDocs, collection, query, where, onSnapshot } from './firebase-config.js';
+    function setAgentGreeting(name) {
+      const txt = `Hello, ${name || 'Agent'}`;
+      const sidebar = document.querySelector('.sidebar');
+      const brand = sidebar?.querySelector('.brand');
+
+      // Reuse or create the sidebar greeting badge
+      let el = document.getElementById('agentGreeting');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'agentGreeting';
+        el.className = 'badge';
+      }
+      el.textContent = txt;
+
+      if (sidebar && brand) {
+        // Place directly under the brand in the left panel
+        el.style.margin = '8px 0 0 0';
+        el.style.marginLeft = '0';
+        sidebar.insertBefore(el, brand.nextSibling);
+        // Hide any old topbar badge
+        document.getElementById('welcomeBadge')?.classList.add('hidden');
+      } else {
+        // Fallback: place in the topbar
+        const host = document.querySelector('.topbar') || document.querySelector('.main') || document.body;
+        el.style.marginLeft = 'auto';
+        el.style.alignSelf = 'center';
+        if (!host.contains(el)) host.appendChild(el);
+      }
+    }
+
+    // Helpers
+    const pad = (n) => String(n).padStart(2, '0');
+    const toDayId = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+    // NEW: robust millis converter used by render/edit/delete
+    const toMillisAny = (v) => {
+      if (!v && v !== 0) return 0;
+      if (typeof v?.toMillis === 'function') return v.toMillis();   // Firestore Timestamp
+      if (v instanceof Date) return v.getTime();                    // Date
+      if (typeof v === 'number') return v;                          // epoch ms
+      if (typeof v === 'string') return Date.parse(v) || 0;         // ISO
+      if (typeof v === 'object' && typeof v.seconds === 'number') { // {seconds,nanoseconds}
+        return v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
+      }
+      return 0;
+    };
+
+    // Keep track of edit state
+    let editEntryKey = null;   // epoch ms used as key
+    let editEntryDay = null;   // dayId being edited
+
+    // Helper: ensure a Cancel button next to submit
+    function ensureCancelEditButton() {
+      const submitBtn = document.getElementById('btn-submit');
+      if (!submitBtn) return null;
+      let cancelBtn = document.getElementById('btn-cancel-edit');
+      if (!cancelBtn) {
+        cancelBtn = document.createElement('button');
+        cancelBtn.id = 'btn-cancel-edit';
+        cancelBtn.className = 'btn secondary';
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.marginLeft = '8px';
+        cancelBtn.style.display = 'none';
+        submitBtn.after(cancelBtn);
+      }
+      return cancelBtn;
+    }
+
+    function enterEditMode(entry, dayId) {
+      const activityEl = document.getElementById('activity');
+      const countEl = document.getElementById('count');
+      const difficultyEl = document.getElementById('difficulty');
+      const submitBtn = document.getElementById('btn-submit');
+      const cancelBtn = ensureCancelEditButton();
+
+      if (activityEl) activityEl.value = entry.activity || '';
+      if (countEl) countEl.value = Number(entry.count || 0);
+      if (difficultyEl) difficultyEl.value = entry.difficulty || '';
+      if (submitBtn) submitBtn.textContent = 'Update Entry';
+      if (cancelBtn) cancelBtn.style.display = '';
+      editEntryKey = entry._keyMs; // normalized ms key
+      editEntryDay = dayId;
+    }
+
+    function exitEditMode() {
+      const submitBtn = document.getElementById('btn-submit');
+      const cancelBtn = document.getElementById('btn-cancel-edit');
+      if (submitBtn) submitBtn.textContent = 'Add Entry';
+      if (cancelBtn) cancelBtn.style.display = 'none';
+      editEntryKey = null;
+      editEntryDay = null;
+    }
+
+    async function renderToday(uid, dayId) {
+      const tbody = document.getElementById('todayTable');
+      if (!tbody) return;
+      try {
+        const snap = await getDoc(doc(db, 'users', uid, 'tasks', dayId));
+        const data = snap.exists() ? snap.data() : {};
+        const entries = Array.isArray(data.entries) ? data.entries.slice() : [];
+        entries.forEach(e => (e._keyMs = toMillisAny(e.createdAt ?? e.createdAtMs)));
+        // newest first
+        entries.sort((a, b) => b._keyMs - a._keyMs);
+        const showEntries = entries.slice(0, 10); // Only show 10
+        tbody.innerHTML = showEntries.length
+          ? showEntries.map(e => {
+              const ts = new Date(e._keyMs || Date.now());
+              const hh = String(ts.getHours()).padStart(2, '0');
+              const mm = String(ts.getMinutes()).padStart(2, '0');
+              if (editEntryKey === e._keyMs && editEntryDay === dayId) {
+                // Inline edit row
+                return `
+                  <tr data-key="${e._keyMs}">
+                    <td>${hh}:${mm}</td>
+                    <td><input type="text" id="edit-activity" value="${e.activity || ''}" style="width:90%"></td>
+                    <td><input type="number" id="edit-count" min="1" step="1" value="${Number(e.count || 0)}" style="width:70px"></td>
+                    <td>
+                      <button class="btn" data-action="save-edit" data-key="${e._keyMs}" style="padding:4px 8px;">Save</button>
+                      <button class="btn secondary" data-action="cancel-edit" data-key="${e._keyMs}" style="padding:4px 8px; margin-left:6px;">Cancel</button>
+                    </td>
+                  </tr>`;
+              } else {
+                return `
+                  <tr data-key="${e._keyMs}">
+                    <td>${hh}:${mm}</td>
+                    <td>${e.activity || '-'}</td>
+                    <td>${Number(e.count || 0)}</td>
+                    <td>
+                      <button class="btn secondary" data-action="edit" data-key="${e._keyMs}" style="padding:4px 8px;">Edit</button>
+                      <button class="btn secondary" data-action="delete" data-key="${e._keyMs}" style="padding:4px 8px; margin-left:6px;">Delete</button>
+                    </td>
+                  </tr>`;
+              }
+            }).join('')
+          : `<tr><td colspan="4" class="muted">No entries for ${dayId}.</td></tr>`;
+
+        // --- FIX: Always re-attach event delegation after rendering ---
+        // Remove any previous event listener by cloning the node
+        const newTbody = tbody.cloneNode(true);
+        if (tbody.parentNode) {
+          tbody.parentNode.replaceChild(newTbody, tbody);
+          newTbody.addEventListener('click', async (ev) => {
+            const btn = ev.target.closest('[data-action]');
+            if (!btn) return;
+            const action = btn.dataset.action;
+            const key = Number(btn.dataset.key || '0');
+            const dayId = document.getElementById('todayDay')?.value;
+            if (!dayId || !Number.isFinite(key)) return;
+
+            const ref = doc(db, 'users', uid, 'tasks', dayId);
+            const snap = await getDoc(ref);
+            const data = snap.exists() ? snap.data() : {};
+            const entries = Array.isArray(data.entries) ? data.entries.slice() : [];
+            entries.forEach(e => (e._keyMs = toMillisAny(e.createdAt ?? e.createdAtMs)));
+            const idx = entries.findIndex(e => e._keyMs === key);
+            if (idx < 0) return;
+
+            if (action === 'edit') {
+              editEntryKey = entries[idx]._keyMs;
+              editEntryDay = dayId;
+              renderToday(uid, dayId);
+            } else if (action === 'cancel-edit') {
+              editEntryKey = null;
+              editEntryDay = null;
+              renderToday(uid, dayId);
+            } else if (action === 'save-edit') {
+              // Save inline edit
+              const tr = btn.closest('tr');
+              const activity = tr.querySelector('#edit-activity')?.value.trim();
+              const count = Number(tr.querySelector('#edit-count')?.value || 0);
+              if (!activity || !Number.isFinite(count) || count < 1) {
+                alert('Please enter a valid activity and count.');
+                return;
+              }
+              entries[idx].activity = activity;
+              entries[idx].count = count;
+              // Save back to Firestore
+              const total = entries.reduce((s, e) => s + Number(e.count || 0), 0);
+              await setDoc(ref, {
+                date: dayId,
+                month: dayId.slice(0,7),
+                total,
+                entries: entries.map(({ _keyMs, ...rest }) => rest), // strip helper
+                updatedAt: serverTimestamp()
+              }, { merge: true });
+              editEntryKey = null;
+              editEntryDay = null;
+              renderToday(uid, dayId);
+              await recomputeAgentKpis(uid, dayId.slice(0,7));
+            } else if (action === 'delete') {
+              const confirmed = await showConfirmModal('Delete this entry?');
+              if (!confirmed) return;
+              entries.splice(idx, 1);
+              const total = entries.reduce((s, e) => s + Number(e.count || 0), 0);
+              await setDoc(ref, {
+                date: dayId,
+                month: dayId.slice(0,7),
+                total,
+                entries: entries.map(({ _keyMs, ...rest }) => rest), // strip helper
+                updatedAt: serverTimestamp()
+              }, { merge: true });
+              if (editEntryKey === key && editEntryDay === dayId) {
+                editEntryKey = null;
+                editEntryDay = null;
+              }
+              renderToday(uid, dayId);
+              await recomputeAgentKpis(uid, dayId.slice(0,7));
+            }
+    // Custom confirm modal styled like the loading overlay
+    function showConfirmModal(message) {
+      return new Promise((resolve) => {
+        let modal = document.getElementById('custom-confirm-modal');
+        if (modal) modal.remove();
+        modal = document.createElement('div');
+        modal.id = 'custom-confirm-modal';
+        modal.innerHTML = `
+          <div style="position:fixed;z-index:9999;top:0;left:0;width:100vw;height:100vh;background:rgba(10,13,24,0.32);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(1.5px);">
+            <div style="background:#181c2a;padding:28px 32px 22px 32px;border-radius:18px;box-shadow:0 4px 32px 0 rgba(0,0,0,0.18);display:flex;align-items:center;gap:16px;min-width:260px;">
+              <div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
+                <svg width="32" height="32" viewBox="0 0 32 32"><circle cx="16" cy="16" r="14" fill="#23263a"/><path d="M16 10v6" stroke="#a78bfa" stroke-width="2.5" stroke-linecap="round"/><circle cx="16" cy="22" r="1.5" fill="#a78bfa"/></svg>
+              </div>
+              <div style="flex:1;color:#fff;font-size:1.13rem;font-weight:500;">${message}</div>
+              <div style="display:flex;gap:10px;">
+                <button id="confirm-ok" class="btn" style="background:#a78bfa;color:#181c2a;font-weight:600;padding:7px 18px;border-radius:8px;">Delete</button>
+                <button id="confirm-cancel" class="btn secondary" style="background:#23263a;color:#fff;font-weight:500;padding:7px 18px;border-radius:8px;">Cancel</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        const cleanup = () => { modal.remove(); };
+        modal.querySelector('#confirm-ok').onclick = () => { cleanup(); resolve(true); };
+        modal.querySelector('#confirm-cancel').onclick = () => { cleanup(); resolve(false); };
+      });
+    }
+          });
+        }
+      } catch (e) {
+        console.error('renderToday failed:', e);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="muted">Unable to load entries.</td></tr>`;
+      }
+    }
+
+    // NEW: agent KPI state + helpers
+    let agentProfile = null;
+    let agSummaryChart = null;
+    let perfWeights = { task: 50, attendance: 30, attitude: 20 };
+    let positionTargets = null;
+
+    const monthIdNow = () => {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+    };
+
+    async function ensureMetricsAndTargets() {
+      if (!positionTargets) {
+        const tSnap = await getDoc(doc(db, 'targets', 'positions'));
+        positionTargets = tSnap.exists() ? tSnap.data() : {};
+      }
+      // Pull dynamic weights
+      const mSnap = await getDoc(doc(db, 'settings', 'metrics'));
+      if (mSnap.exists()) {
+        const w = mSnap.data().weights || {};
+        const t = Number.isFinite(w.task) ? w.task : 50;
+        const a = Number.isFinite(w.attendance) ? w.attendance : 30;
+        const d = Number.isFinite(w.attitude) ? w.attitude : 20;
+        perfWeights = { task: t, attendance: a, attitude: d };
+      }
+    }
+
+    // NEW: draw Summary bar for agent
+    function drawAgSummaryBar(dayTotals) {
+      const canvas = document.getElementById('agSummaryBar');
+      if (!canvas || !(canvas instanceof HTMLCanvasElement)) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const days = Object.keys(dayTotals || {}).sort();
+      const labels = days; // use dates as labels
+      const data = days.map(d => Number(dayTotals[d] || 0));
+
+      try {
+        if (agSummaryChart) agSummaryChart.destroy();
+        agSummaryChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Tasks per day',
+              data,
+              backgroundColor: 'rgba(167,139,250,0.35)',
+              borderColor: 'rgba(167,139,250,0.9)',
+              borderWidth: 1,
+              borderRadius: 6
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  title: (items) => items?.[0]?.label || '',
+                  label: (it) => `Tasks: ${it.parsed?.y ?? 0}`
+                }
+              }
+            },
+            scales: {
+              x: { ticks: { display: false }, grid: { color: 'rgba(255,255,255,0.06)' } },
+              y: { beginAtZero: true, ticks: { color: '#c7c9d3' }, grid: { color: 'rgba(255,255,255,0.06)' } }
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('Agent Summary bar render skipped:', err);
+      }
+    }
+
+    // NEW: update task ring UI
+    function updateTaskRing(pct) {
+      const ring = document.getElementById('agTaskProgress');
+      const label = document.getElementById('agTaskProgressPct');
+      if (ring) ring.style.setProperty('--p', Math.max(0, Math.min(100, pct)));
+      if (label) label.textContent = `${Math.round(Math.max(0, Math.min(100, pct)))}%`;
+    }
+
+    // NEW: clamp helper
+    const clampPct = (n) => Math.min(100, Math.max(0, n));
+
+    // NEW: recompute and render all KPIs for selected month
+    async function recomputeAgentKpis(uid, monthId) {
+      await ensureMetricsAndTargets();
+      // Sum month totals + build per-day map
+      const daysRef = collection(db, 'users', uid, 'tasks');
+      const qy = query(daysRef, where('month', '==', monthId));
+      const snapDays = await getDocs(qy);
+      const dayTotals = {};
+      let totalTasks = 0;
+      snapDays.forEach(d => {
+        const data = d.data() || {};
+        const dt = data.date || d.id;
+        const t = Number(data.total || 0);
+        if (dt) dayTotals[dt] = t;
+        totalTasks += t;
+      });
+
+      // Target by position
+      const pos = agentProfile?.position || '';
+      const target = Number(positionTargets?.[pos] || 0);
+      const remaining = target ? Math.max(0, target - totalTasks) : 0;
+      const taskPct = target > 0 ? clampPct((totalTasks / target) * 100) : 0;
+
+      // Update Task Progress + Task Created
+      const fmt = (n) => (Number.isFinite(n) ? n.toLocaleString() : '0');
+      const elTotal = document.getElementById('agDetailTotal');
+      const elTarget = document.getElementById('agDetailTarget');
+      const elRemain = document.getElementById('agDetailToTarget');
+      if (elTotal) elTotal.textContent = fmt(totalTasks);
+      if (elTarget) elTarget.textContent = target ? fmt(target) : '-';
+      if (elRemain) elRemain.textContent = target ? fmt(remaining) : '-';
+      updateTaskRing(taskPct);
+      const agTaskPct = document.getElementById('agTaskPct');
+      const agTaskMeta = document.getElementById('agTaskMeta');
+      if (agTaskPct) agTaskPct.textContent = `${Math.round(taskPct)}%`;
+      if (agTaskMeta) agTaskMeta.textContent = `${fmt(totalTasks)} / ${fmt(target)}`;
+
+      // --- Task Created Message ---
+      const agTaskMsg = document.getElementById('agTaskMsg');
+      if (agTaskMsg) {
+        let msg = '';
+        if (!target || target === 0) {
+          msg = "No target set for your position.";
+        } else if (taskPct >= 100) {
+          msg = "Amazing! You've reached your target!";
+        } else if (taskPct >= 90) {
+          msg = "Awesome! You're almost there!";
+        } else if (taskPct >= 70) {
+          msg = "Great progress! Keep going!";
+        } else if (taskPct >= 40) {
+          msg = "Good start! Keep pushing!";
+        } else if (taskPct > 0) {
+          msg = "Let's get started! You can do it!";
+        } else {
+          msg = "No tasks logged yet. Start now!";
+        }
+        agTaskMsg.textContent = msg;
+      }
+
+      // Attendance/Attitude from KPI doc if present
+      const kpiSnap = await getDoc(doc(db, 'users', uid, 'kpi', monthId));
+      const kpi = kpiSnap.exists() ? kpiSnap.data() : {};
+      const workingDays = Math.max(0, Math.floor(Number(kpi.workingDays || 0)));
+      const workedDays = Math.max(0, Math.floor(Number(kpi.workedDays || 0)));
+      const lateMinutes = Math.max(0, Math.floor(Number(kpi.lateMinutes || 0)));
+      let attendanceMetric = 0;
+      if (workingDays > 0) {
+        const dayScore = clampPct((workedDays / workingDays) * 100);
+        const H_day_minutes = 480;
+        const lateScore = workedDays > 0
+          ? clampPct(100 - (lateMinutes / (workedDays * H_day_minutes)) * 100)
+          : 100;
+        attendanceMetric = clampPct(dayScore * 0.90 + lateScore * 0.10);
+      } else if (Number.isFinite(Number(kpi.attendancePoints))) {
+        attendanceMetric = clampPct(Number(kpi.attendancePoints));
+      }
+      const attitudePts = clampPct(Number(kpi.attitudePoints || 0));
+
+      // Overall with dynamic weights
+      const wT = (perfWeights.task || 0) / 100;
+      const wA = (perfWeights.attendance || 0) / 100;
+      const wD = (perfWeights.attitude || 0) / 100;
+      const overall = clampPct(taskPct * wT + attendanceMetric * wA + attitudePts * wD);
+      const agOverallPct = document.getElementById('agOverallPct');
+      if (agOverallPct) agOverallPct.textContent = `${Math.round(overall)}%`;
+
+      // --- Overall Performance Message ---
+      const agOverallMsg = document.getElementById('agOverallMsg');
+      if (agOverallMsg) {
+        let msg = '';
+        if (overall >= 95) {
+          msg = "Outstanding performance! Keep it up!";
+        } else if (overall >= 85) {
+          msg = "Excellent! You're on track!";
+        } else if (overall >= 70) {
+          msg = "Nice! You're almost there!";
+        } else if (overall >= 50) {
+          msg = "Good effort! Keep improving!";
+        } else if (overall > 0) {
+          msg = "Let's boost your performance!";
+        } else {
+          msg = "No data yet. Start logging your tasks!";
+        }
+        agOverallMsg.textContent = msg;
+      }
+
+      // Summary chart
+      drawAgSummaryBar(dayTotals);
+    }
+
+    let unsubscribeTasks = null; // Keep track of the current Firestore listener
+
+    function listenToTasksAndUpdate(uid, monthId, dayId) {
+      // Unsubscribe previous listener if any
+      if (typeof unsubscribeTasks === 'function') unsubscribeTasks();
+
+      // Listen to all days in the selected month
+      const daysRef = collection(db, 'users', uid, 'tasks');
+      const qy = query(daysRef, where('month', '==', monthId));
+      unsubscribeTasks = onSnapshot(qy, (snapDays) => {
+        // Build a map of dayId -> entries for fast lookup
+        const dayMap = {};
+        snapDays.forEach(d => {
+          dayMap[d.id] = d.data();
+        });
+
+        // Update KPIs for the month
+        recomputeAgentKpis(uid, monthId);
+
+        // Update today's table if the current day is in this month
+        if (dayMap[dayId]) {
+          renderToday(uid, dayId);
+        } else {
+          // If no entries for this day, clear the table
+          const tbody = document.getElementById('todayTable');
+          if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="muted">No entries for ${dayId}.</td></tr>`;
+        }
+      });
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        window.location.href = './index.html';
+        return;
+      }
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        const data = snap.data() || {};
+        agentProfile = data; // NEW: keep for target lookup
+        const name = data.name || user.displayName || 'Agent';
+        setAgentGreeting(name);
+      } catch {
+        setAgentGreeting('Agent');
+      }
+
+      // Init month picker default + recompute KPIs
+      const mp = document.getElementById('monthPicker');
+      const inp = document.getElementById('todayDay');
+      let currentMonth = (mp?.value || monthIdNow());
+      let currentDay = inp?.value || toDayId(new Date());
+
+      // Initial listen
+      listenToTasksAndUpdate(user.uid, currentMonth, currentDay);
+
+      // Listen for month changes
+      mp?.addEventListener('change', (e) => {
+        currentMonth = mp.value;
+        listenToTasksAndUpdate(user.uid, currentMonth, currentDay);
+      });
+
+      // Listen for day changes
+      inp?.addEventListener('change', (e) => {
+        currentDay = inp.value;
+        listenToTasksAndUpdate(user.uid, currentMonth, currentDay);
+      });
+
+      // Init month calendar with Flatpickr month grid (avoid redeclaring 'mp')
+      const mpEl = document.getElementById('monthPicker');
+      if (mpEl) {
+        if (mpEl.type !== 'text') mpEl.type = 'text'; // prevent native month UI
+        window.flatpickr(mpEl, {
+          plugins: [window.monthSelectPlugin({ shorthand: true, dateFormat: 'Y-m' })],
+          defaultDate: mpEl.value || null,
+          onChange: (dates, str) => {
+            mpEl.value = str;
+            mpEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+      }
+    });
+
+    // Set today's date as default for the date picker in dd/mm/yyyy format
+    function setTodayDateInput() {
+      const todayInput = document.getElementById('todayDay');
+      if (todayInput) {
+        const now = new Date();
+        // Format as yyyy-mm-dd for input[type="date"]
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        todayInput.value = `${yyyy}-${mm}-${dd}`;
+      }
+    }
+    setTodayDateInput();
+
+    // Defensive helper for addEventListener
+    function safeAddEventListener(id, event, handler) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener(event, handler);
+        return true;
+      }
+      return false;
+    }
+
+    // Defensive helper for setting textContent
+    function safeSetTextContent(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+
+    // Remove any direct .addEventListener or .textContent assignments for elements that may not exist
+    // and use the helpers above everywhere in your script for all UI event bindings and status updates.
+
+    // Sidebar toggle
+    safeAddEventListener('toggleSidebar', 'click', () => {
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) sidebar.classList.toggle('open');
+    });
+
+    // View switching (Dashboard <-> Profile)
+    const navDashboard = document.getElementById('navDashboard');
+    const navProfile = document.getElementById('navProfile');
+    const dashboardPanel = document.getElementById('dashboardPanel');
+    const profilePanel = document.getElementById('profilePanel');
+
+    // --- FIX: Move showDashboard/showProfile above their usage ---
+    function showDashboard(e) {
+      e?.preventDefault();
+      dashboardPanel?.classList.remove('hidden');
+      profilePanel?.classList.add('hidden');
+      navDashboard?.classList.add('active');
+      navProfile?.classList.remove('active');
+    }
+    function showProfile(e) {
+      e?.preventDefault();
+      dashboardPanel?.classList.add('hidden');
+      profilePanel?.classList.remove('hidden');
+      navDashboard?.classList.remove('active');
+      navProfile?.classList.add('active');
+    }
+
+    safeAddEventListener('navDashboard', 'click', showDashboard);
+    safeAddEventListener('navProfile', 'click', showProfile);
+
+    // Import Excel button
+    safeAddEventListener('importExcelBtn', 'click', async function () {
+      const excelArea = document.getElementById('excelPaste');
+      const importStatus = document.getElementById('importStatus');
+      const dayEl = document.getElementById('todayDay');
+      if (!excelArea || !dayEl) return;
+      const raw = excelArea.value.trim();
+      if (!raw) {
+        safeSetTextContent('importStatus', "Paste some data first.");
+        return;
+      }
+      safeSetTextContent('importStatus', "Importing...");
+      try {
+        const user = (await import('./firebase-config.js')).auth.currentUser;
+        if (!user) throw new Error("Not logged in.");
+        const { db, doc, getDoc, setDoc, serverTimestamp } = await import('./firebase-config.js');
+
+        // --- Extract date from first line if present ---
+        let lines = raw.split('\n');
+        let importDate = null;
+        const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/;
+        if (lines.length > 0 && dateRegex.test(lines[0])) {
+          const match = lines[0].match(dateRegex);
+          if (match) {
+            // Convert to yyyy-mm-dd
+            const mm = match[1].padStart(2, '0');
+            const dd = match[2].padStart(2, '0');
+            const yyyy = match[3];
+            importDate = `${yyyy}-${mm}-${dd}`;
+          }
+          lines = lines.slice(1); // Remove the date line for further processing
+        }
+        // Fallback to selected date if no date found
+        const todayId = importDate || dayEl.value;
+        const monthId = todayId.slice(0, 7);
+        const ref = doc(db, 'users', user.uid, 'tasks', todayId);
+        const snap = await getDoc(ref);
+        const data = snap.exists() ? snap.data() : {};
+        const entries = Array.isArray(data.entries) ? data.entries.slice() : [];
+        let imported = 0;
+
+        // Only import activities with count > 0
+        lines.forEach(line => {
+          const cols = line.split('\t').map(s => s.trim()).filter(Boolean);
+          if (
+            cols.length >= 3 &&
+            /^\d+$/.test(cols[0]) &&
+            cols[1] &&
+            !isNaN(Number(cols[2])) &&
+            Number(cols[2]) > 0 // Only import if count > 0
+          ) {
+            entries.push({
+              activity: cols[1],
+              count: Math.floor(Number(cols[2])),
+              createdAt: Date.now() + imported
+            });
+            imported++;
+          }
+        });
+
+        if (imported === 0) {
+          safeSetTextContent('importStatus', "No valid activities found.");
+          return;
+        }
+        const sanitized = entries.map(({ _keyMs, ...rest }) => rest);
+        const total = sanitized.reduce((s, e) => s + Number(e.count || 0), 0);
+        await setDoc(ref, {
+          date: todayId,
+          month: monthId,
+          total,
+          entries: sanitized,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        safeSetTextContent('importStatus', `Imported ${imported} activities for ${todayId}!`);
+        excelArea.value = '';
+        if (dayEl.value !== todayId) {
+          dayEl.value = todayId;
+        }
+        renderToday(user.uid, todayId);
+      } catch (err) {
+        safeSetTextContent('importStatus', err?.message || "Import failed.");
+      }
+      setTimeout(() => { safeSetTextContent('importStatus', ''); }, 2000);
+    });
+
+    // Theme toggle logic
+    (function() {
+      const themeToggle = document.getElementById('themeToggle');
+      function getPreferredTheme() {
+        if (localStorage.getItem('theme')) return localStorage.getItem('theme');
+        return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      }
+      function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        themeToggle.checked = (theme === 'light');
+      }
+      setTheme(getPreferredTheme());
+      themeToggle.addEventListener('change', function() {
+        setTheme(this.checked ? 'light' : 'dark');
+      });
+    })();
+
+    // --- Add handler for manual task submission ---
+    safeAddEventListener('btn-submit', 'click', async function (e) {
+      e?.preventDefault?.();
+      const activityEl = document.getElementById('activity');
+      const countEl = document.getElementById('count');
+      const submitStatus = document.getElementById('submitStatus');
+      const dayEl = document.getElementById('todayDay');
+      if (!activityEl || !countEl || !dayEl) return;
+      const activity = activityEl.value.trim();
+      const count = Number(countEl.value);
+      const todayId = dayEl.value;
+      if (!activity) {
+        safeSetTextContent('submitStatus', "Please enter an activity name.");
+        return;
+      }
+      if (!Number.isFinite(count) || count < 1) {
+        safeSetTextContent('submitStatus', "Please enter a valid number completed.");
+        return;
+      }
+      safeSetTextContent('submitStatus', "Submitting...");
+      try {
+        const user = (await import('./firebase-config.js')).auth.currentUser;
+        if (!user) throw new Error("Not logged in.");
+        const { db, doc, getDoc, setDoc, serverTimestamp } = await import('./firebase-config.js');
+        // --- FIX: Use correct document reference (must be 4 segments) ---
+        // users/{uid}/tasks/{dayId}
+        if (!todayId) throw new Error("Please select a date.");
+        const ref = doc(db, 'users', user.uid, 'tasks', todayId);
+        const snap = await getDoc(ref);
+        const data = snap.exists() ? snap.data() : {};
+        const entries = Array.isArray(data.entries) ? data.entries.slice() : [];
+        // If in edit mode, replace the entry (remove old, add new), else add new
+        if (window.editEntryKey && window.editEntryDay === todayId) {
+          const idx = entries.findIndex(e => toMillisAny(e.createdAt ?? e.createdAtMs) === window.editEntryKey);
+          if (idx >= 0) {
+            // Remove the old entry
+            entries.splice(idx, 1);
+          }
+          // Add the new/edited entry
+          entries.push({
+            activity,
+            count,
+            createdAt: Date.now()
+          });
+          window.editEntryKey = null;
+          window.editEntryDay = null;
+        } else {
+          entries.push({
+            activity,
+            count,
+            createdAt: Date.now()
+          });
+        }
+        const sanitized = entries.map(({ _keyMs, ...rest }) => rest);
+        const total = sanitized.reduce((s, e) => s + Number(e.count || 0), 0);
+        await setDoc(ref, {
+          date: todayId,
+          month: todayId.slice(0, 7),
+          total,
+          entries: sanitized,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        safeSetTextContent('submitStatus', "Task submitted!");
+        activityEl.value = '';
+        countEl.value = '';
+        // Refresh Today's Activity and Monthly Entries
+        renderToday(user.uid, todayId);
+        await recomputeAgentKpis(user.uid, todayId.slice(0, 7));
+      } catch (err) {
+        safeSetTextContent('submitStatus', err?.message || "Submit failed.");
+      }
+      setTimeout(() => { safeSetTextContent('submitStatus', ''); }, 2000);
+    });
+  </script>
+</body>
+</html>
